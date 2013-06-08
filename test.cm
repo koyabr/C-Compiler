@@ -1,0 +1,7 @@
+int main(void)
+{
+        int aa;
+        int bb;
+        int cc;
+        a = b+c*a/b-c;
+}
