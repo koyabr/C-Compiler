@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "global.h"
 #include "parser.tab.h"
 %}
 %option noyywrap
@@ -46,8 +47,8 @@
 "||" {return COR;}
 "&&" {return CAND;}
 
-[0-9]+ {printf ("%d\n",atoi(yytext)); return NUMBER;}
-[a-zA-Z][a-zA-Z]* {printf("ID: %s\n",yytext);return ID;}
+[0-9]+ {yylval.value = atoi(yytext); return NUMBER;}
+[a-zA-Z][a-zA-Z]* {yylval.name = strdup(yytext);return ID;}
 [ \t]*
 . {printf("MISS MATCH: %c\n", yytext[0]);}
 %%

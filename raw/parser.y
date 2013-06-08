@@ -2,17 +2,37 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "global.h"
 #include "parser.tab.h"
      extern int yylineno;
      extern char* yytext;
      %}
+
+/* if else return while int void */
 %token IF ELSE RETURN WHILE INT VOID
+ /* ( ) { } " [ ] , ; \n =  */
 %token LBracket RBracket LBrace RBrace Quote LSB RSB COMMA SEMI NEWLINE ASSIGN
-%token NUMBER ID
 %token BLANK
 
+ /* - + * / | &  */
 %left MINUS PLUS MULTI DIV OR AND
+ /* > < >= <= == || && */
 %left B S BE SE EQ COR CAND NE
+
+
+%token <value>NUMBER
+%token <name>ID
+
+
+%type <sym> expression var simple_expression additive_expression term factor call
+
+
+%union{
+     char* name;                /* terminal token: for symbol's name */
+     int value;                 /* terminal token: for number */
+     struct symbol sym;         /* unterminal token: symbol */
+ }
+
 %%
 program: declaration_list			{}
 ;

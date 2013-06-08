@@ -37,12 +37,18 @@ int main(int argc, char *argv[])
      }
      else
      {
-          FILE *fp = fopen("code", "r");
+          FILE *fp = fopen("test.cm", "r");
+          if(fp==NULL)
+          {
+               printf("Usage: c- [filename]\n");
+               return -1;
+          }
+          
           yyrestart(fp);
           yyparse();
           fclose(fp);
      }
-     /* delete */
+     /* delete nodes*/
      for(i=0;i<SIZE;i++)
      {
           current = hash_table[i];
@@ -81,7 +87,6 @@ void insert(char* name, int type)
      struct node* newnode = new_node();
      int length = strlen(name);
      int i;
-     /* newnode->name = strdup(name); */
      strcpy(newnode->name, name);
      newnode->type = type;
 #ifdef DEBUG
@@ -129,14 +134,4 @@ int typeEqual(int type, int want)
 void type_error(int lineno)
 {
      fprintf(stderr, "type error in line: %d\n", lineno);
-}
-
-int isArrayType(int type)
-{
-     return 0;
-}
-
-void makeTypeNode(int arraytype, int num, int type)
-{
-     
 }
