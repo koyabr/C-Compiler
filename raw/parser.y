@@ -24,7 +24,7 @@
 %token <name>ID
 
 
-%type <sym> expression var simple_expression additive_expression term factor call
+%type <sym> expression var simple_expression additive_expression term factor call type_specifier
 
 
 %union{
@@ -45,12 +45,12 @@ declaration: var_declaration			{}
 | fun_declaration				{}
 ;
 
-var_declaration: type_specifier ID SEMI 	{}
-| type_specifier ID LSB NUMBER RSB SEMI		{}
+var_declaration: type_specifier ID SEMI 	{insert($2, $1.type);}
+| type_specifier ID LSB NUMBER RSB SEMI		{insertArray($2, $1.type + ARRAY, $4);}
 ;
 
-type_specifier: INT				{}
-| VOID						{}
+type_specifier: INT				{$1.type = INTEGER;}
+| VOID						{$1.type = VOID;}
 ;
 
 fun_declaration: type_specifier ID LBracket params RBracket compound_stmt {}
