@@ -1,11 +1,12 @@
 LEXER = ./raw/lexer.l
 PARSER = ./raw/parser.y
 OS = WINDOWS
-c-: main.c global.h $(LEXER) $(PARSER)
+GCC = gcc
+c-: main.c global.h $(LEXER) $(PARSER) AST.h AST.c
 	bison -d $(PARSER)
 	flex $(LEXER)
 ifeq ($(OS), LINUX)
-	gcc main.c parser.tab.c lex.yy.c -o c- -ly
+	$(GCC) main.c parser.tab.c lex.yy.c AST.c -o c- -ly
 else
-	gcc main.c parser.tab.c lex.yy.c -o c-
+	$(GCC) main.c parser.tab.c lex.yy.c AST.c -o c-
 endif

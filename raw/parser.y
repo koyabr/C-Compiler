@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "global.h"
 #include "parser.tab.h"
+#include "AST.h"
      extern int yylineno;
      extern char* yytext;
      %}
@@ -24,17 +25,18 @@
 %token <name>ID
 
 
-%type <sym> expression var simple_expression additive_expression term factor call type_specifier
-
+%type <node> expression var simple_expression additive_expression term factor call type_specifier
+%type <node> program declaration_list
 
 %union{
      char* name;                /* terminal token: for symbol's name */
      int value;                 /* terminal token: for number */
      struct symbol sym;         /* unterminal token: symbol */
+     struct ASTNode* node;
  }
 
 %%
-program: declaration_list			{}
+program: declaration_list			{$$ = newProgram($1);}
 ;
 
 declaration_list: declaration_list declaration 	{}
@@ -45,12 +47,12 @@ declaration: var_declaration			{}
 | fun_declaration				{}
 ;
 
-var_declaration: type_specifier ID SEMI 	{insert($2, $1.type);}
-| type_specifier ID LSB NUMBER RSB SEMI		{insertArray($2, $1.type + ARRAY, $4);}
+var_declaration: type_specifier ID SEMI 	{}
+| type_specifier ID LSB NUMBER RSB SEMI		{}
 ;
 
-type_specifier: INT				{$1.type = INTEGER;}
-| VOID						{$1.type = VOID;}
+type_specifier: INT				{}
+| VOID						{}
 ;
 
 fun_declaration: type_specifier ID LBracket params RBracket compound_stmt {}
@@ -158,7 +160,7 @@ arg_list: arg_list COMMA expression		{}
 
 %%
 
-yyerror(char *errmsg)
+int yyerror(char *errmsg)
 {
      fprintf(stderr, "%d: %s at '%s' \n", yylineno, errmsg, yytext);
 }
