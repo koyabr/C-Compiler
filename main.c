@@ -14,25 +14,10 @@ comment: Compiler Design Course Project
 #include "parser.tab.h"
 #include "AST.h"
 extern int yylineno;
-/* struct node{ */
-/*      char name[128]; */
-/*      struct symbol sym; */
-/*      struct node* next; */
-/* }; */
-/* struct node* hash_table[SIZE]; */
-/* int hashcode(char *key); */
-/* void insert(char* name, int type); */
-/* int lookup(char* name); */
-/* int delete(char* name); */
-
+struct ASTNode* ASTRoot = NULL;
 int main(int argc, char *argv[])
 {
      int i;
-     /* struct node* tmp = NULL; */
-     /* struct node* current = NULL; */
-
-     /* for(i=0;i<SIZE;i++) */
-     /*      hash_table[i] = NULL; */
      yylineno = 1;
      if(argc == 2)
      {
@@ -54,17 +39,6 @@ int main(int argc, char *argv[])
           yyparse();
           fclose(fp);
      }
-     /* delete nodes*/
-     /* for(i=0;i<SIZE;i++) */
-     /* { */
-     /*      current = hash_table[i]; */
-     /*      while(current!=NULL) */
-     /*      { */
-     /*           tmp = current; */
-     /*           current = current->next; */
-     /*           free(tmp); */
-     /*      } */
-     /* } */
      return 0;
 }
 int hashcode(char *key)
