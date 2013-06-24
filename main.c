@@ -39,6 +39,7 @@ int main(int argc, char *argv[])
           yyparse();
           fclose(fp);
      }
+     printAST(ASTRoot, 0);
      return 0;
 }
 int hashcode(char *key)
