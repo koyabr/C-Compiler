@@ -4,7 +4,7 @@ struct ASTNode* newDecList(struct ASTNode* decList, struct ASTNode* declaration)
 struct ASTNode* newDec(struct ASTNode* declaration, int type);             // type: 0=var, 1=fun
 struct ASTNode* newVarDec(struct ASTNode* typeSpecifier, char* ID);
 struct ASTNode* newArrayDec(struct ASTNode* typeSpecifier, char* ID, int size);
-struct ASTNode* newTypeSpe(enum VarType type);
+struct ASTNode* newTypeSpe(ExpType type);
 struct ASTNode* newFunDec(struct ASTNode* typeSpecifier, char* ID, struct ASTNode* params, struct ASTNode* compound);
 struct ASTNode* newParams(struct ASTNode* paramList); // paramList==NULL => params: VOID
 struct ASTNode* newParamList(struct ASTNode* paramList, struct ASTNode* param); // paramList==NULL => param_list:param
@@ -22,12 +22,12 @@ struct ASTNode* newExpression(struct ASTNode* simpExp);
 struct ASTNode* newVar(char* ID);
 struct ASTNode* newArrayVar(char* ID, struct ASTNode* expression);
 // relop==NULL & addExp2==NULL => simple_expression: additive expression
-struct ASTNode* newSimpExp(struct ASTNode* addExp1, struct ASTNode* relop, struct ASTNode* addExp2);
+struct ASTNode* newSimpExp(struct ASTNode* addExp1, int relop, struct ASTNode* addExp2);
 
 struct ASTNode* newRelop(int opType);
-struct ASTNode* newAddExp(struct ASTNode* addExp, struct ASTNode* addop, struct ASTNode* term);
+struct ASTNode* newAddExp(struct ASTNode* addExp, int addop, struct ASTNode* term);
 struct ASTNode* newAddOp(int opType);
-struct ASTNode* newTerm(struct ASTNode* term, struct ASTNode* mulop, struct ASTNode* factor);
+struct ASTNode* newTerm(struct ASTNode* term, int mulop, struct ASTNode* factor);
 struct ASTNode* newTermFactor(struct ASTNode* factor);
 struct ASTNode* newMulop(int opType);
 struct ASTNode* newFactorExp(struct ASTNode* expression);
@@ -37,3 +37,7 @@ struct ASTNode* newFactorNum(int num);
 struct ASTNode* newCall(char* ID, struct ASTNode* args);
 struct ASTNode* newArgs(struct ASTNode* argList); // argList=NULL => args:
 struct ASTNode* newArgList(struct ASTNode* argList, struct ASTNode* expression); // argList==NULL
+struct ASTNode* newASTNode(ASTType asttype);
+struct ASTNode* newIDNode(char* ID);
+struct ASTNode* newNumNode(int num);
+void printAST(struct ASTNode* root, int indent);
