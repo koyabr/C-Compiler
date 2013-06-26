@@ -15,6 +15,7 @@ comment: Compiler Design Course Project
 #include "AST.h"
 extern int yylineno;
 struct ASTNode* ASTRoot = NULL;
+struct symbolNode* hashTable[SIZE];
 int main(int argc, char *argv[])
 {
      int i;

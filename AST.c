@@ -299,25 +299,25 @@ void printNodeKind(struct ASTNode* node)
      switch(node->astType)
      {
      case VARDEC_AST:
-          printf("Var declaration AST\n");
+          printf("Var declaration \n");
           break;
      case ARRAYDEC_AST:
-          printf("Array declaration AST\n");
+          printf("Array declaration \n");
           break;
      case FUNDEC_AST:
-          printf("Function declaration AST\n");
+          printf("Function declaration \n");
           break;
      case TYPE_AST:
-          printf("Type specifier AST\n");
+          printf("Type specifier \n");
           break;
      case PARAMID_AST:
-          printf("Param of ID AST\n");
+          printf("Param of ID \n");
           break;
      case PARAMARRAY_AST:
-          printf("Param of Array AST\n");
+          printf("Param of Array \n");
           break;
      case COMPOUND_AST:
-          printf("Counpound statements AST\n");
+          printf("Counpound statements \n");
           break;
      case EXPSTMT_AST:
           printf("Expression statement\n");
@@ -335,25 +335,25 @@ void printNodeKind(struct ASTNode* node)
           printf("Assign statement\n");
           break;
      case EXP_AST:
-          printf("Expression AST\n");
+          printf("Expression \n");
           break;
      case VAR_AST:
-          printf("Var AST\n");
+          printf("Var \n");
           break;
      case ARRAYVAR_AST:
           printf("Array var ASt\n");
           break;
      case FACTOR_AST:
-          printf("Factor AST\n");
+          printf("Factor \n");
           break;
      case CALLSTMT_AST:
-          printf("Call stement AST\n");
+          printf("Call stement \n");
           break;
      case ARGS_AST:
           printf("Args\n");
           break;
      case ARGLIST_AST:
-          printf("Arg List AST\n");
+          printf("Arg List \n");
           break;
      case NUM_AST:
           printf("Number AST: %d\n", node->attr.value);
@@ -374,7 +374,7 @@ void printAST(struct ASTNode* root, int indent)
      {
           for (i = 0; i<indent; ++i)
           {
-               printf(" ");
+               printf("  ");
           }
           printNodeKind(node);
           printAST(node->child[0], indent+4);
