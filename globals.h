@@ -15,30 +15,16 @@
 #define TRUE 1
 #endif
 
-/* MAXRESERVED = the number of reserved words */
+/* number of reserved words */
 #define MAXRESERVED 6
 
 extern FILE* source; /* source code text file */
 extern FILE* listing; /* listing output text file */
 extern FILE* code; /* code text file for TM simulator */
 
-extern int lineno; /* source line number for listing */
+extern int yylineno;
+extern char* yytext;
 
-typedef enum 
-    /* book-keeping tokens */
-   {ENDFILE,ERROR,
-    /* reserved words */
-    IF,ELSE,WHILE,RETURN,INT,VOID,
-    /* multicharacter tokens */
-    ID,NUM,
-     /* ( ) { } " [ ] , ; \n =  */
-    LBracket, RBracket, LBrace, RBrace, Quote, LSB, RSB, COMMA, SEMI, NEWLINE, ASSIGN, BLANK,
-     /* - + * / | &  */
-    MINUS, PLUS, MULTI, DIV, OR, AND,
-     /* > < >= <= == || && != */
-    B, S, BE, SE, EQ, COR, CAND, NE
-    
-   } TokenType;
 
 /**************************************************/
 /***********   Syntax tree for parsing ************/
@@ -90,7 +76,7 @@ struct symbol{
      int mem_location;        /* variable's location in TM memory  */
 };
 
-extern TreeNode *ROOT;
+extern TreeNode *ASTRoot;
 
 
 

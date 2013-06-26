@@ -85,7 +85,7 @@ void emitRM_Abs( char *op, int r, int a, char * c);
  * of the code file, and is used to print the
  * file name as a comment in the code file
  */
-void codeGen(TreeNode * syntaxTree, char * codefile);
+void codeGen(TreeNode * syntaxTree);
 
 
 #endif

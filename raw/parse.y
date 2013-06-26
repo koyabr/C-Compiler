@@ -1,4 +1,4 @@
-/*Yacc */
+/*Yacc Parser*/
 
 %{
 #define YYPARSER
@@ -6,24 +6,37 @@
 #include "globals.h"
 #include "AST.h"
 
-extern int yylineno;
-extern char* yytext;
+
 %}
 
-%union{
-     char* name;                /* terminal token: for symbol's name */
-     int value;                 /* terminal token: for number */
-     struct symbol sym;         /* unterminal token: symbol */
-     struct ASTNode* node;      /* unterminal token: abstract syntax tree node */
- }
+/* if else return while int void */
+%token IF ELSE RETURN WHILE INT VOID
+ /* ( ) { } " [ ] , ; \n = */
+%token LBracket RBracket LBrace RBrace Quote LSB RSB COMMA SEMI NEWLINE ASSIGN
+%token BLANK
 
-%type <node> program declaration_list declaration var_declaration type_specifier fun_declaration 
+ /* - + * / | & */
+%left MINUS PLUS MULTI DIV OR AND
+ /* > < >= <= == || && */
+%left B S BE SE EQ COR CAND NE
+
+
+%token <value>NUMBER
+%token <name>ID
+
+
+%type <node> program declaration_list declaration var_declaration type_specifier fun_declaration
 %type <node> params param_list param compound_stmt local_declarations statement_list statement
 %type <node> expression_stmt selection_stmt iteration_stmt return_stmt expression var
 %type <node> simple_expression additive_expression term factor call args arg_list
 %type <value> relop addop mulop
 
-
+%union{
+     char* name; /* terminal token: for symbol's name */
+     int value; /* terminal token: for number */
+     struct symbol sym; /* unterminal token: symbol */
+     struct ASTNode* node; /* unterminal token: abstract syntax tree node */
+ }
 
 %%
 program: declaration_list			{ASTRoot = newProgram($1);}

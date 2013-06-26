@@ -23,7 +23,7 @@ FILE * code;
 
 int Error = FALSE;
 
-TreeNode * ROOT;
+TreeNode * ASTRoot;
 
 int main(int argc, char *argv[])
 {
@@ -47,9 +47,9 @@ int main(int argc, char *argv[])
 
   if (! Error)
   { fprintf(listing,"\nBuilding Symbol Table...\n");
-    buildSymtab(ROOT);
+    buildSymtab(ASTRoot);
     fprintf(listing,"\nChecking Types...\n");
-    typeCheck(ROOT);
+    typeCheck(ASTRoot);
     fprintf(listing,"\nType Checking Finished\n");
   }
 
@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
     { printf("Unable to open %s\n",codefile);
       exit(1);
     }
-    codeGen(ROOT,codefile);
+    codeGen(ASTRoot);
     fclose(code);
   }
 
