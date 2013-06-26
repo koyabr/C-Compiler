@@ -1,9 +1,26 @@
 #include "AST.h"
-#include "global.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
-#include <string.h>
+
+
+void printNodeKind(struct ASTNode* node)
+{
+}
+void printAST(struct ASTNode* root, int indent)
+{
+     struct ASTNode* node = root;
+     int i;
+     while(node != NULL)
+     {
+          for (i = 0; i<indent; ++i)
+          {
+               printf(" ");
+          }
+          printNodeKind(node);
+          printAST(node->child[0], indent+4);
+          node = node->sibling;
+     }
+}
+
+
 struct ASTNode* newProgram(struct ASTNode* decList)
 {
      return decList;
@@ -290,22 +307,4 @@ struct ASTNode* newNumNode(int num)
      struct ASTNode* root = newNumNode(NUM_AST);
      root->attr.value = num;
      return root;
-}
-void printNodeKind(struct ASTNode* node)
-{
-}
-void printAST(struct ASTNode* root, int indent)
-{
-     struct ASTNode* node = root;
-     int i;
-     while(node != NULL)
-     {
-          for (i = 0; i<indent; ++i)
-          {
-               printf(" ");
-          }
-          printNodeKind(node);
-          printAST(node->child[0], indent+4);
-          node = node->sibling;
-     }
 }

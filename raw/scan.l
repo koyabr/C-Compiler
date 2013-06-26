@@ -1,13 +1,23 @@
+/* Lex Scanner */
+
 %{
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "global.h"
-#include "parser.tab.h"
+#include "globals.h"
+#include "utils.h"
+#include "scanner.h"
+#include "parser.h"
 %}
 %option noyywrap
 %option yylineno
 
+digit       [0-9]
+number      {digit}+
+letter      [a-zA-Z]
+identifier  {letter}+
+newline     \n
+whitespace  [ \t]+
 
 %%
 
@@ -47,8 +57,17 @@
 "||" {return COR;}
 "&&" {return CAND;}
 
-[0-9]+ {yylval.value = atoi(yytext); return NUMBER;}
-[a-zA-Z][a-zA-Z]* {yylval.name = strdup(yytext);return ID;}
-[ \t]*
+{number} {
+	yylval.value = atoi(yytext); 
+	return NUMBER;
+	}
+
+identifier {
+	yylval.name = strdup(yytext);
+	return ID;
+	}
+
+whitespace {/* skip */}
+
 . {printf("MISS MATCH: %c\n", yytext[0]);}
 %%

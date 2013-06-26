@@ -7,111 +7,67 @@ author: Kohn<3100102881@zju.edu.cn>
 comment: Compiler Design Course Project
 
 ***************************/
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include "global.h"
-#include "parser.tab.h"
-#include "AST.h"
-extern int yylineno;
-struct ASTNode* ASTRoot = NULL;
+
+#include "globals.h"
+#include "utils.h"
+#include "scan.h"
+#include "parse.h"
+#include "symtab.h"
+#include "codegen.h"
+
+/* allocate global variables */
+int lineno = 0;
+FILE * source;
+FILE * listing;
+FILE * code;
+
+int Error = FALSE;
+
+TreeNode * ROOT;
+
 int main(int argc, char *argv[])
 {
-     int i;
-     yylineno = 1;
-     if(argc == 2)
-     {
-          FILE *fp = fopen(argv[1], "r");
-          yyrestart(fp);
-          yyparse();
-          fclose(fp);
-     }
-     else
-     {
-          FILE *fp = fopen("test.cm", "r");
-          if(fp==NULL)
-          {
-               printf("Usage: c- [filename]\n");
-               return -1;
-          }
-          
-          yyrestart(fp);
-          yyparse();
-          fclose(fp);
-     }
-     return 0;
+  
+  char pgm[120]; /* source code file name */
+  if (argc != 2)
+    { fprintf(stderr,"usage: %s <filename>\n",argv[0]);
+      exit(1);
+    }
+  strcpy(pgm,argv[1]) ;
+  source = fopen(pgm,"r");
+  if (source==NULL)
+  { fprintf(stderr,"File %s not found\n",pgm);
+    exit(1);
+  }
+  listing = stdout; /* send listing to screen */
+  fprintf(listing,"\nTINY COMPILATION: %s\n",pgm);
+
+  yyrestart(source);
+  yyparse();
+
+  if (! Error)
+  { fprintf(listing,"\nBuilding Symbol Table...\n");
+    buildSymtab(ROOT);
+    fprintf(listing,"\nChecking Types...\n");
+    typeCheck(ROOT);
+    fprintf(listing,"\nType Checking Finished\n");
+  }
+
+  if (! Error)
+  { char * codefile = (char *) calloc(strlen(pgm), sizeof(char));
+    strcpy(codefile,pgm);
+    strcat(codefile,".tm");
+    code = fopen(codefile,"w");
+    if (code == NULL)
+    { printf("Unable to open %s\n",codefile);
+      exit(1);
+    }
+    codeGen(ROOT,codefile);
+    fclose(code);
+  }
+
+  fclose(source);
+  return 0;
 }
-int hashcode(char *key)
-{
-     int temp = 0;
-     int i = 0;
-     while(key[i] != '\0')
-     {
-          temp = ((temp<<SHIFT) + key[i]) % SIZE;
-          i++;
-     }
-     return temp;
-}
 
-/* struct node* new_node() */
-/* { */
-/*      struct node* newnode = (struct node*)malloc(sizeof(struct node)); */
-/*      newnode->next = NULL; */
-/*      newnode->type = -1; */
-/*      return newnode; */
-/* } */
-/* void insert(char* name, int type) */
-/* { */
-/*      int key = hashcode(name); */
-/*      struct node* current = hash_table[key]; */
-/*      struct node* newnode = new_node(); */
-/*      int length = strlen(name); */
-/*      int i; */
-/*      strcpy(newnode->name, name); */
-/*      newnode->type = type; */
-/* #ifdef DEBUG */
-/*      printf ("new node type: %d\n", newnode->type); */
-/* #endif */
-/*      if(hash_table[key]==NULL) */
-/*           hash_table[key] = newnode; */
-/*      else */
-/*      { */
-/*           newnode->next = hash_table[key]->next; */
-/*           hash_table[key]->next = newnode; */
-/*      } */
-/* } */
-/* int lookup(char* name) */
-/* { */
-/* #ifdef DEBUG */
-/*      printf ("lookingfor %s\n", name); */
-/* #endif */
-/*      int key = hashcode(name); */
-/*      struct node* current = hash_table[key]; */
-/*      int i = 0; */
-/*      while(current != NULL) */
-/*      { */
-/*           i++; */
-/*           if(strcmp(current->name, name) == 0) /\* right node contains the given name *\/ */
-/*           { */
-/* #ifdef DEBUG */
-/*                printf ("find %s, type = %d\n", name, current->type); */
-/* #endif */
-/*                return current->type; */
-/*           } */
-/*           current = current->next; */
-/*      } */
-/* #ifdef DEBUG      */
-/*      printf ("cannot find %s\n", name); */
-/* #endif */
-/*      return -1;                 /\* cannot find the ID *\/ */
-/* } */
 
-/* int typeEqual(int type, int want) */
-/* { */
-/*      return type==want; */
-/* } */
-
-/* void type_error(int lineno) */
-/* { */
-/*      fprintf(stderr, "type error in line: %d\n", lineno); */
-/* } */
