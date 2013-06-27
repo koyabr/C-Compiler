@@ -147,6 +147,12 @@ struct ASTNode* newParam(struct ASTNode* typeSpecifier, char* ID, int type, int 
           root = newASTNode(PARAMID_AST, lineno);
           root->child[0] = typeSpecifier;
           root->attr.name = strdup(ID);
+          pushTable(ParamST);
+          if(st_lookup(root->attr.name) != NULL)
+               Error(root, "parameter has been declared before");
+          else
+               st_insert(root->attr.name, lineno, location , TYPE_INTEGER)
+          popTable();
           root->type = TYPE_INTEGER;
      }
      else // param: type_specifier ID LSB RSB
@@ -154,6 +160,12 @@ struct ASTNode* newParam(struct ASTNode* typeSpecifier, char* ID, int type, int 
           root = newASTNode(PARAMARRAY_AST, lineno);
           root->child[0] = typeSpecifier;
           root->attr.name = strdup(ID);
+          pushTable(ParamST);
+          if(st_lookup(root->attr.name) != NULL)
+               Error(root, "parameter has been declared before");
+          else
+               st_insert(root->attr.name, lineno, location , TYPE_ARRAY)
+          popTable();
           root->type = TYPE_ARRAY;
      }
      return root;
