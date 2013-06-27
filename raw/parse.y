@@ -11,14 +11,15 @@
 
 /* if else return while int void */
 %token IF ELSE RETURN WHILE INT VOID
- /* ( ) { } " [ ] , ; \n = */
-%token LBracket RBracket LBrace RBrace Quote LSB RSB COMMA SEMI NEWLINE ASSIGN
-%token BLANK
+ /* ( ) { } " [ ] , ; = */
+%token LBracket RBracket LBrace RBrace Quote LSB RSB COMMA SEMI ASSIGN
 
- /* - + * / */
-%left MINUS PLUS MULTI DIV
+
+ /* - + * / | & */
+%left MINUS PLUS MULTI DIV 
  /* > < >= <= == != */
-%left B S BE SE EQ NE
+%left GT LT GE LE EQ NE
+
 
 
 %token <value>NUMBER
@@ -118,10 +119,10 @@ simple_expression: additive_expression relop additive_expression	{$$ = newSimpEx
 | additive_expression				{$$ = newSimpExp($1, -1, NULL);}
 ;
 
-relop: B					{$$ = B;}
-| S						{$$ = S;}
-| BE						{$$ = BE;}
-| SE						{$$ = SE;}
+relop: GT					{$$ = GT;}
+| LT						{$$ = LT;}
+| GE						{$$ = GE;}
+| LE						{$$ = LE;}
 | EQ						{$$ = EQ;}
 | NE						{$$ = NE;}
 ;

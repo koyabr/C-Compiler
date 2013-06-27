@@ -7,15 +7,46 @@
 
 #include "globals.h"
 
- /* Function buildSymtab constructs the symbol 
- * table by preorder traversal of the syntax tree
- */
-void buildSymtab(TreeNode *);
+typedef enum {GLOBAL_VAR, LOCAL_VAR, PARAM_VAR} VarType;
 
-/* Procedure typeCheck performs type checking 
- * by a postorder syntax tree traversal
- */
-void typeCheck(TreeNode *);
+typedef struct symbol Symbol;
+struct symbol {
+	char *name;
+	int offset;
+	ExpType expType;/*int void array*/
+	VarType varType;/*global, local, param*/
+	struct symbol *next;
+
+};
+
+typedef struct symtab SymTab;
+struct symtab {
+	int size;
+	VarType varType;/*global, local, param*/
+	Symbol head;
+	struct symtab *next;
+};
+
+typedef struct symbol_func SymbolFunc;
+struct symbol_func {
+	char *name;
+	ExpType type;
+
+	int address;
+	int param_size;
+	int var_size;
+
+	SymTab symtab;
+
+	struct symbol_func *next;
+
+};
+
+ /* constructs the symbol table */
+void buildSymtab(TreeNode *tree);
+
+/* performs type checking */
+void typeCheck(TreeNode *tree);
 
 
  /* Procedure st_insert inserts line numbers and

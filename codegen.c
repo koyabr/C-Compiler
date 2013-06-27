@@ -1,26 +1,41 @@
 /*Codegen*/
 
-#include "globals.h"
 #include "symtab.h"
 #include "codegen.h"
 
 
-/* TM location number for current instruction emission */
+
+/* current location */
 static int emitLoc = 0 ;
 
-/* Highest TM location emitted so far
-   For use in conjunction with emitSkip,
-   emitBackup, and emitRestore */
+/* Highest TM location emitted so far */
 static int highEmitLoc = 0;
 
-/* Procedure emitComment prints a comment line 
- * with comment c in the code file
+/* skips "howMany" locations for later backpatch
+ * returns the current code position
  */
+int emitSkip( int howMany)
+{  int i = emitLoc;
+   emitLoc += howMany ;
+   if (highEmitLoc < emitLoc)  highEmitLoc = emitLoc ;
+   return i;
+} 
+
+/* backs up to a previously skipped location */
+void emitBackup( int loc)
+{ if (loc > highEmitLoc) emitComment("BUG in emitBackup");
+  emitLoc = loc ;
+} 
+
+/* restores the current position to the highest previous position*/
+void emitRestore(void)
+{ emitLoc = highEmitLoc;}
+
+/* prints a comment line */
 void emitComment( char * c )
 { if (TraceCode) fprintf(code,"* %s\n",c);}
 
-/* Procedure emitRO emits a register-only
- * TM instruction
+/* emits a register-only TM instruction
  * op = the opcode
  * r = target register
  * s = 1st source register
@@ -32,10 +47,9 @@ void emitRO( char *op, int r, int s, int t, char *c)
   if (TraceCode) fprintf(code,"\t%s",c) ;
   fprintf(code,"\n") ;
   if (highEmitLoc < emitLoc) highEmitLoc = emitLoc ;
-} /* emitRO */
+} 
 
-/* Procedure emitRM emits a register-to-memory
- * TM instruction
+/* emits a register-to-memory TM instruction
  * op = the opcode
  * r = target register
  * d = the offset
@@ -47,247 +61,369 @@ void emitRM( char * op, int r, int d, int s, char *c)
   if (TraceCode) fprintf(code,"\t%s",c) ;
   fprintf(code,"\n") ;
   if (highEmitLoc < emitLoc)  highEmitLoc = emitLoc ;
-} /* emitRM */
-
-/* Function emitSkip skips "howMany" code
- * locations for later backpatch. It also
- * returns the current code position
- */
-int emitSkip( int howMany)
-{  int i = emitLoc;
-   emitLoc += howMany ;
-   if (highEmitLoc < emitLoc)  highEmitLoc = emitLoc ;
-   return i;
-} /* emitSkip */
-
-/* Procedure emitBackup backs up to 
- * loc = a previously skipped location
- */
-void emitBackup( int loc)
-{ if (loc > highEmitLoc) emitComment("BUG in emitBackup");
-  emitLoc = loc ;
-} /* emitBackup */
-
-/* Procedure emitRestore restores the current 
- * code position to the highest previously
- * unemitted position
- */
-void emitRestore(void)
-{ emitLoc = highEmitLoc;}
-
-/* Procedure emitRM_Abs converts an absolute reference 
- * to a pc-relative reference when emitting a
- * register-to-memory TM instruction
- * op = the opcode
- * r = target register
- * a = the absolute location in memory
- * c = a comment to be printed if TraceCode is TRUE
- */
-void emitRM_Abs( char *op, int r, int a, char * c)
-{ fprintf(code,"%3d:  %5s  %d,%d(%d) ",
-               emitLoc,op,r,a-(emitLoc+1),pc);
-  ++emitLoc ;
-  if (TraceCode) fprintf(code,"\t%s",c) ;
-  fprintf(code,"\n") ;
-  if (highEmitLoc < emitLoc) highEmitLoc = emitLoc ;
-} /* emitRM_Abs */
+} 
 
 
-/* tmpOffset is the memory offset for temps
-   It is decremented each time a temp is
-   stored, and incremeted when loaded again
-*/
-static int tmpOffset = 0;
 
-/* prototype for internal recursive code generator */
-static void cGen (TreeNode * tree);
+/* emit one instruction to get the address of a symbol */
+void emitGetAddr(symbol)
+{
 
-/* Procedure genStmt generates code at a statement node */
-static void genStmt( TreeNode * tree)
-{ TreeNode * p1, * p2, * p3;
-  int savedLoc1,savedLoc2,currentLoc;
-  int loc;
-  switch (tree->kind.stmt) {
-
-      case IfK :
-         if (TraceCode) emitComment("-> if") ;
-         p1 = tree->child[0] ;
-         p2 = tree->child[1] ;
-         p3 = tree->child[2] ;
-         /* generate code for test expression */
-         cGen(p1);
-         savedLoc1 = emitSkip(1) ;
-         emitComment("if: jump to else belongs here");
-         /* recurse on then part */
-         cGen(p2);
-         savedLoc2 = emitSkip(1) ;
-         emitComment("if: jump to end belongs here");
-         currentLoc = emitSkip(0) ;
-         emitBackup(savedLoc1) ;
-         emitRM_Abs("JEQ",ac,currentLoc,"if: jmp to else");
-         emitRestore() ;
-         /* recurse on else part */
-         cGen(p3);
-         currentLoc = emitSkip(0) ;
-         emitBackup(savedLoc2) ;
-         emitRM_Abs("LDA",pc,currentLoc,"jmp to end") ;
-         emitRestore() ;
-         if (TraceCode)  emitComment("<- if") ;
-         break; /* if_k */
-
-      case RepeatK:
-         if (TraceCode) emitComment("-> repeat") ;
-         p1 = tree->child[0] ;
-         p2 = tree->child[1] ;
-         savedLoc1 = emitSkip(0);
-         emitComment("repeat: jump after body comes back here");
-         /* generate code for body */
-         cGen(p1);
-         /* generate code for test */
-         cGen(p2);
-         emitRM_Abs("JEQ",ac,savedLoc1,"repeat: jmp back to body");
-         if (TraceCode)  emitComment("<- repeat") ;
-         break; /* repeat */
-
-      case AssignK:
-         if (TraceCode) emitComment("-> assign") ;
-         /* generate code for rhs */
-         cGen(tree->child[0]);
-         /* now store value */
-         loc = st_lookup(tree->attr.name);
-         emitRM("ST",ac,loc,gp,"assign: store value");
-         if (TraceCode)  emitComment("<- assign") ;
-         break; /* assign_k */
-
-      case ReadK:
-         emitRO("IN",ac,0,0,"read integer value");
-         loc = st_lookup(tree->attr.name);
-         emitRM("ST",ac,loc,gp,"read: store value");
-         break;
-      case WriteK:
-         /* generate code for expression to write */
-         cGen(tree->child[0]);
-         /* now output it */
-         emitRO("OUT",ac,0,0,"write ac");
-         break;
-      default:
-         break;
-    }
-} /* genStmt */
-
-/* Procedure genExp generates code at an expression node */
-static void genExp( TreeNode * tree)
-{ int loc;
-  TreeNode * p1, * p2;
-  switch (tree->kind.exp) {
-
-    case ConstK :
-      if (TraceCode) emitComment("-> Const") ;
-      /* gen code to load integer constant using LDC */
-      emitRM("LDC",ac,tree->attr.val,0,"load const");
-      if (TraceCode)  emitComment("<- Const") ;
-      break; /* ConstK */
-    
-    case IdK :
-      if (TraceCode) emitComment("-> Id") ;
-      loc = st_lookup(tree->attr.name);
-      emitRM("LD",ac,loc,gp,"load id value");
-      if (TraceCode)  emitComment("<- Id") ;
-      break; /* IdK */
-
-    case OpK :
-         if (TraceCode) emitComment("-> Op") ;
-         p1 = tree->child[0];
-         p2 = tree->child[1];
-         /* gen code for ac = left arg */
-         cGen(p1);
-         /* gen code to push left operand */
-         emitRM("ST",ac,tmpOffset--,mp,"op: push left");
-         /* gen code for ac = right operand */
-         cGen(p2);
-         /* now load left operand */
-         emitRM("LD",ac1,++tmpOffset,mp,"op: load left");
-         switch (tree->attr.op) {
-            case PLUS :
-               emitRO("ADD",ac,ac1,ac,"op +");
-               break;
-            case MINUS :
-               emitRO("SUB",ac,ac1,ac,"op -");
-               break;
-            case TIMES :
-               emitRO("MUL",ac,ac1,ac,"op *");
-               break;
-            case OVER :
-               emitRO("DIV",ac,ac1,ac,"op /");
-               break;
-            case LT :
-               emitRO("SUB",ac,ac1,ac,"op <") ;
-               emitRM("JLT",ac,2,pc,"br if true") ;
-               emitRM("LDC",ac,0,ac,"false case") ;
-               emitRM("LDA",pc,1,pc,"unconditional jmp") ;
-               emitRM("LDC",ac,1,ac,"true case") ;
-               break;
-            case EQ :
-               emitRO("SUB",ac,ac1,ac,"op ==") ;
-               emitRM("JEQ",ac,2,pc,"br if true");
-               emitRM("LDC",ac,0,ac,"false case") ;
-               emitRM("LDA",pc,1,pc,"unconditional jmp") ;
-               emitRM("LDC",ac,1,ac,"true case") ;
-               break;
-            default:
-               emitComment("BUG: Unknown operator");
-               break;
-         } /* case op */
-         if (TraceCode)  emitComment("<- Op") ;
-         break; /* OpK */
-
-    default:
-      break;
-  }
-} /* genExp */
-
-/* Procedure cGen recursively generates code by
- * tree traversal
- */
-static void cGen( TreeNode * tree)
-{ if (tree != NULL)
-  { switch (tree->nodekind) {
-      case StmtK:
-        genStmt(tree);
+  switch(symbol->varType){
+    case GLOABL_VAR:
+        emitRM("LDA",bx,-(symbol->offset),gp,"get global address");
         break;
-      case ExpK:
-        genExp(tree);
+    case LOCAL_VAR:
+        emitRM("LDA",bx,-1-(symbol->offset),bp,"get local address");
         break;
-      default:
+    case PARAM_VAR:
+        if(symbol->type == TYPE_ARRAY){
+          emitRM("LD",bx,2+(symbol->offset),bp,"get param array address");
+        }
+        else{
+          emitRM("LDA",bx,2+(symbol->offset),bp,"get param variable address");
+        }
         break;
-    }
-    cGen(tree->sibling);
   }
 }
 
-/**********************************************/
-/* the primary function of the code generator */
-/**********************************************/
-/* Procedure codeGen generates code to a code
- * file by traversal of the syntax tree. The
- * second parameter (codefile) is the file name
- * of the code file, and is used to print the
- * file name as a comment in the code file
+
+/* emits 5 instructions to call a function*/
+void emitCall(funcinfo)
+{
+
+  emitRM("LDA",ax,3,pc,"store returned PC");
+  emitRM("LDA",sp,-1,sp,"push prepare");
+  emitRM("ST",ax,0,sp,"push returned PC");
+  emitRM("LDC",pc,funcinfo->addr,0,"jump to function");
+  emitRM("LDA",sp,funcinfo->size,sp,"release parameters");
+}
+
+
+/* getValue:
+ * 1 - store value in ax
+ * 2 - store address in bx
  */
-void codeGen(TreeNode * syntaxTree, char * codefile)
-{  char * s = malloc(strlen(codefile)+7);
-   strcpy(s,"File: ");
-   strcat(s,codefile);
-   emitComment("TINY Compilation to TM Code");
-   emitComment(s);
+static int getValue = 1;
+
+
+
+/* recursively generates code by tree traversal */
+static void cGen( TreeNode * tree)
+{ 
+  int tmp;
+  TreeNode * p1, * p2, * p3;
+  int savedLoc1,savedLoc2,currentLoc;
+
+    while(tree){
+
+        switch (tree->astType) {
+
+          case EXPSTMT_AST:
+              if (TraceCode) emitComment("-> exp statement");
+              p1 = tree->child[0];/*expression*/
+              cGen(p1);
+              if (TraceCode) emitComment("<- exp statement");
+
+             break;
+
+          case FUNDEC_AST:
+              
+              if (TraceCode) emitComment("-> function:");
+
+              p1 = tree->child[3];/*body*/
+
+              
+              /*prepare bp & sp*/
+              emitRM("LDA",sp,-1,sp,"push prepare");
+              emitRM("ST",bp,0,sp,"push old bp");
+              emitRM("LDA",bp,0,sp,"let bp == sp");
+
+              push_symtab(tree->symtab);
+
+              /*generate body*/
+              cGen(p1); 
+
+              pop_symtab();
+
+              if (TraceCode) emitComment("<- function");
+              
+              break;
+
+          case COMPOUND_AST:
+             
+              if (TraceCode) emitComment("-> compound");
+              p1 = tree->child[0];
+              push_symtab(tree->symtab);
+              cGen(p1);
+              pop_symtab();
+              if (TraceCode) emitComment("<- compound");
+              break;
+
+          case SELESTMT_AST :
+             if (TraceCode) emitComment("-> if") ;
+             p1 = tree->child[0] ;
+             p2 = tree->child[1] ;
+             p3 = tree->child[2] ;
+             /* generate code for test expression */
+             cGen(p1);
+             savedLoc1 = emitSkip(1) ;
+             emitComment("jump to else ");
+             /* recurse on then part */
+             cGen(p2);
+             savedLoc2 = emitSkip(1) ;
+             emitComment("jump to end");
+             currentLoc = emitSkip(0) ;
+             emitBackup(savedLoc1) ;
+             emitRM_Abs("JEQ",ax,currentLoc,zero"if: jmp to else");
+             emitRestore() ;
+             /* recurse on else part */
+             cGen(p3);
+             currentLoc = emitSkip(0) ;
+             emitBackup(savedLoc2) ;
+             emitRM("LDA",pc,currentLoc,zero,"jmp to end") ;
+             emitRestore() ;
+             if (TraceCode)  emitComment("<- if") ;
+             break; 
+
+          case ITERSTMT_AST:
+             if (TraceCode) emitComment("-> while") ;
+             p1 = tree->child[0] ;
+             p2 = tree->child[1] ;
+             savedLoc1 = emitSkip(0);
+             emitComment("jump here after body");
+             /* generate code for test */
+             cGen(p1);
+             savedLoc2 = emitSkip(1);
+             emitComment("jump to end if test fails");
+             /* generate code for body */
+             cGen(p2);
+             emitRM("LDA",pc,savedLoc1,zero,"jump to test");
+             currentLoc = emitSkip(0);
+             emitBackup(savedLoc2);
+             emitRM("JEQ",ax,currentLoc,zero,"jump to end");
+             emitRestore();
+             if (TraceCode)  emitComment("<- while") ;
+             break; 
+
+          case RETSTMT_AST:
+            if (TraceCode) emitComment("-> return");
+            p1 = tree->child[0];
+            /*Only calculate non-voild value*/
+            if(tree->type != TYPE_VOID) 
+              cGen(p1);
+
+            /*return*/
+            emitRM("LDA",sp,0,bp,"let sp == bp");
+            emitRM("LDA",sp,2,sp,"pop prepare");
+            emitRM("LD",bp,-2,sp,"pop old bp");
+            emitRM("LD",pc,-1,sp,"pop return addr");
+
+            if (TraceCode) emitComment("<- return");
+            break;
+
+
+          case NUM_AST:
+             if(TraceCode) emitComment("-> number");
+             emitRM("LDC",ax,tree->attr.value,0,"store number");
+             if(TraceCode) emitComment("<- number");
+             break;
+
+          case VAR_AST:
+             if(TraceCode) emitComment("-> variable");
+             symbol = lookup(tree->attr.name);
+             emitGetAddr(symbol);
+             if(getValue){
+              if(symbol->type == TYPE_ARRAY)
+                emitRM("LDA",ax,0,bx,"get array variable value( == address)");
+              else
+                emitRM("LD",ax,0,bx,"get variable value");
+
+             }
+             if(TraceCode) emitComment("<- variable");
+             break;
+
+          case ARRAYVAR_AST:
+             if(TraceCode) emitComment("-> array element");
+             p1 = tree->child[0];/*name*/
+             p2 = tree->child[1];/*select exp*/
+             symbol = lookup(p1->attr.name);
+             emitGetAddr(symbol);
+             tmp = getValue;
+             getValue = 1;
+             cGen(p2);
+             getValue = tmp;
+             emitRO("SUB",bx,bx,ax,"get address of array element");
+             if(getValue)
+                emitRM("LD",ax,0,bx,"get value of array element");
+             if(TraceCode) emitComment("<- array element");
+             break;
+
+
+
+
+          case ASSIGN_AST:
+             if (TraceCode) emitComment("-> assign") ;
+             p1 = tree->child[0];/*left*/
+             p2 = tree->child[1];/*right*/
+             /* left value (get its address)*/
+             getValue = 0;
+             cGen(p1);
+             /* right value */
+             getValue = 1;
+             cGen(p2);
+             /* now we can assign*/
+             emitRM("ST",ax,0,bx,"assign: store");
+             if (TraceCode)  emitComment("<- assign") ;
+             break; 
+
+          case EXP_AST:
+             if (TraceCode) emitComment("-> op") ;
+             p1 = tree->child[0];/*left*/
+             p2 = tree->child[1];/*right*/
+             
+             cGen(p1);
+             /* store left operand */
+             emitRM("LDA",sp,-1,sp,"push prepare");
+             emitRM("ST",ax,0,sp,"op: push left");
+             
+             cGen(p2);
+             /* now load left operand */
+             emitRM("LD",bx,0,sp,"op: load left");
+             switch (tree->attr.op) {
+                case PLUS :
+                   emitRO("ADD",ax,bx,ax,"op +");
+                   break;
+                case MINUS :
+                   emitRO("SUB",ax,bx,ax,"op -");
+                   break;
+                case MULTI :
+                   emitRO("MUL",ax,bx,ax,"op *");
+                   break;
+                case DIV :
+                   emitRO("DIV",ax,bx,ax,"op /");
+                   break;
+                case EQ :
+                   emitRO("SUB",ax,bx,ax,"op ==") ;
+                   emitRM("JEQ",ax,2,pc,"br if true") ;
+                   emitRM("LDC",ax,0,0,"false case") ;
+                   emitRM("LDA",pc,1,pc,"unconditional jmp") ;
+                   emitRM("LDC",ax,1,0,"true case") ;
+                   break;
+                case NE :
+                   emitRO("SUB",ax,bx,ax,"op !=") ;
+                   emitRM("JNE",ax,2,pc,"br if true") ;
+                   emitRM("LDC",ax,0,0,"false case") ;
+                   emitRM("LDA",pc,1,pc,"unconditional jmp") ;
+                   emitRM("LDC",ax,1,0,"true case") ;
+                   break;
+                case LT :
+                   emitRO("SUB",ax,bx,ax,"op <") ;
+                   emitRM("JLT",ax,2,pc,"br if true") ;
+                   emitRM("LDC",ax,0,0,"false case") ;
+                   emitRM("LDA",pc,1,pc,"unconditional jmp") ;
+                   emitRM("LDC",ax,1,0,"true case") ;
+                   break;
+                case GT :
+                   emitRO("SUB",ax,bx,ax,"op >") ;
+                   emitRM("JGT",ax,2,pc,"br if true") ;
+                   emitRM("LDC",ax,0,0,"false case") ;
+                   emitRM("LDA",pc,1,pc,"unconditional jmp") ;
+                   emitRM("LDC",ax,1,0,"true case") ;
+                   break;
+                case LE :
+                   emitRO("SUB",ax,bx,ax,"op <=") ;
+                   emitRM("JLE",ax,2,pc,"br if true") ;
+                   emitRM("LDC",ax,0,0,"false case") ;
+                   emitRM("LDA",pc,1,pc,"unconditional jmp") ;
+                   emitRM("LDC",ax,1,0,"true case") ;
+                   break;
+                case GE :
+                   emitRO("SUB",ax,bx,ax,"op >=") ;
+                   emitRM("JGE",ax,2,pc,"br if true") ;
+                   emitRM("LDC",ax,0,0,"false case") ;
+                   emitRM("LDA",pc,1,pc,"unconditional jmp") ;
+                   emitRM("LDC",ax,1,0,"true case") ;
+                   break;
+                default:
+                   emitComment("BUG: Unknown operator");
+                   break;
+             } 
+             if (TraceCode)  emitComment("<- op") ;
+             break; 
+
+
+          case CALL_AST:
+             if (TraceCode) emitComment("-> call") ;
+             p1 = tree->child[0];/*name*/
+             p2 = tree->child[1];/*arguments*/
+
+             funcinfo = lookup(p1->attr.name);
+             symbol = funcinfo->symtab->head;
+
+             while(symbol && p2){
+                cGen(p2);
+                emitRM("LDA",sp,-1,sp,"push prepare");
+                emitRM("ST",ax,0,sp,"push parameters");
+
+                symbol = symbol->next;
+                p2 = p2->sibling;
+             }
+
+             emitCall(funcinfo);
+             
+
+             if (TraceCode)  emitComment("<- call") ;
+             break; 
+
+          default:
+            break;
+        }
+
+
+
+      tree = tree->sibling;
+    }
+}
+
+
+/* the primary function of the code generator */
+void codeGen(TreeNode * syntaxTree)
+{  
+   int loc;
+
    /* generate standard prelude */
-   emitComment("Standard prelude:");
-   emitRM("LD",mp,0,ac,"load maxaddress from location 0");
-   emitRM("ST",ac,0,ac,"clear location 0");
-   emitComment("End of standard prelude.");
-   /* generate code for TINY program */
+   if (TraceCode) emitComment("Begin prelude");
+   emitRM("ST",zero,0,zero,"clear location 0");
+   emitRM("LD",gp,0,zero,"load from location 0");
+   if (TraceCode) emitComment("End of prelude");
+
+   /* Jump to main() */
+   if (TraceCode) emitComment("Jump to main()");
+   loc = emitSkip(6); /*A call consumes 5 instructions, and we need halt after main()*/
+
+
+   /* generate input/output function codes */
+   if (TraceCode) emitComment("Begin input()");
+   emitRO("IN",ax,0,0,"read input into ax");
+   emitRM("LDA",sp,1,sp,"pop prepare");
+   emitRM("LD",pc,-1,sp,"pop return addr");
+   if (TraceCode) emitComment("End input()");
+   if (TraceCode) emitComment("Begin output()");
+   emitRM("LD",ax,1,sp,"load param into ax");
+   emitRO("OUT",ax,0,0,"output using ax");
+   emitRM("LDA",sp,1,sp,"pop prepare");
+   emitRM("LD",pc,-1,sp,"pop return addr");
+   if (TraceCode) emitComment("End output()");
+
+
+   /* generate code for source */
    cGen(syntaxTree);
-   /* finish */
-   emitComment("End of execution.");
-   emitRO("HALT",0,0,0,"");
+
+   /* Fill up jump-to-main code */
+   emitBackup(loc);
+   funcinfo = lookup("main");
+   emitCall(funcinfo);
+   emitRO("HALT",0,0,0,"END OF PROGRAM");
+
 }
