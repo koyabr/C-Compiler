@@ -5,25 +5,17 @@
 
 #include "globals.h"
 
-/* pc = program counter  */
-#define  pc 7
+/*data register*/
+#define zero 0
+#define ax 1
+#define bx 2
 
-/* mp = "memory pointer" points
- * to top of memory (for temp storage)
- */
-#define  mp 6
+/*pointer register*/
+#define sp 4
+#define bp 5
+#define gp 6
+#define pc 7
 
-/* gp = "global pointer" points
- * to bottom of memory for (global)
- * variable storage
- */
-#define gp 5
-
-/* accumulator */
-#define  ac 0
-
-/* 2nd accumulator */
-#define  ac1 1
 
 /* code emitting utilities */
 
@@ -69,15 +61,15 @@ void emitBackup( int loc);
  */
 void emitRestore(void);
 
-/* Procedure emitRM_Abs converts an absolute reference 
- * to a pc-relative reference when emitting a
- * register-to-memory TM instruction
- * op = the opcode
- * r = target register
- * a = the absolute location in memory
- * c = a comment to be printed if TraceCode is TRUE
- */
-void emitRM_Abs( char *op, int r, int a, char * c);
+
+
+/* emits 5 instructions to call a function*/
+void emitCall(funcinfo);
+
+/* emit one instruction to get the address of a symbol */
+void emitGetAddr(symbol);
+
+
 
 /* Procedure codeGen generates code to a code
  * file by traversal of the syntax tree. The
