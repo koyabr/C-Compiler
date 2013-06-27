@@ -15,9 +15,6 @@
 #define TRUE 1
 #endif
 
-/* number of reserved words */
-#define MAXRESERVED 6
-
 extern FILE* source; /* source code text file */
 extern FILE* listing; /* listing output text file */
 extern FILE* code; /* code text file for TM simulator */
@@ -31,13 +28,6 @@ extern char* yytext;
 /**************************************************/
 
 #define MAXCHILDREN 4
-
-typedef enum {StmtK,ExpK} NodeKind;
-typedef enum {IfK,RepeatK,AssignK,ReadK,WriteK} StmtKind;
-typedef enum {OpK,ConstK,IdK,ASTK} ExpKind;
-
-/* ExpType is used for type checking */
-typedef enum {TYPE_INTEGER, TYPE_VOID, TYPE_ARRAY} ExpType;
 
 
 typedef enum {VARDEC_AST, ARRAYDEC_AST, FUNDEC_AST,
@@ -55,8 +45,6 @@ struct ASTNode{
      int lineno;
      struct ASTNode* child[MAXCHILDREN];
      struct ASTNode* sibling;
-     NodeKind nodekind;
-     union { StmtKind stmt; ExpKind exp;} kind;
      ASTType astType;
      union{
           TokenType op;

@@ -22,6 +22,55 @@ static int hash ( char * key )
      return temp;
 }
 
+static SymbolFunc *functionList = NULL;
+
+void push_symbol_func(SymbolFunc *function) {
+  function->next = functionList;
+  functionList = function;
+}
+
+SymbolFunc* peek_symbol_func() {
+  if(!functionList) {
+    //Error
+  }
+  return functionList;
+}
+
+void reverse_function_list() {
+  SymbolFunc *sfp = functionList;
+  SymbolFunc *tmp;
+  functionList = NULL;
+
+  while(sfp != NULL) {
+    tmp = sfp;
+    sfp = sfp->next;
+    push_symbol_func(tmp);
+  }
+}
+
+
+static SymTab *symtabList = NULL;
+
+void push_symtab(SymTab *symtab) {
+  symtab->next = symtabList;
+  symtabList = symtab;
+}
+
+void pop_symtab() {
+  if(!symtabList){
+    // Error
+  }
+  symtabList = symtabList->next;
+}
+
+SymTab* peek_symtab() {
+  if(!symtabList){
+    // Error
+  }
+  return symtabList;
+}
+
+
 /* the list of line numbers of the source 
  * code in which a variable is referenced
  */

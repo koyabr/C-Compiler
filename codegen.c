@@ -66,7 +66,7 @@ void emitRM( char * op, int r, int d, int s, char *c)
 
 
 /* emit one instruction to get the address of a symbol */
-void emitGetAddr(symbol)
+void emitGetAddr(Symbol *symbol)
 {
 
   switch(symbol->varType){
@@ -89,14 +89,14 @@ void emitGetAddr(symbol)
 
 
 /* emits 5 instructions to call a function*/
-void emitCall(funcinfo)
+void emitCall(SymbolFunc *symbol_func)
 {
 
   emitRM("LDA",ax,3,pc,"store returned PC");
   emitRM("LDA",sp,-1,sp,"push prepare");
   emitRM("ST",ax,0,sp,"push returned PC");
-  emitRM("LDC",pc,funcinfo->addr,0,"jump to function");
-  emitRM("LDA",sp,funcinfo->size,sp,"release parameters");
+  emitRM("LDC",pc,symbol_func->offset,0,"jump to function");
+  emitRM("LDA",sp,symbol_func->param_size,sp,"release parameters");
 }
 
 
@@ -115,6 +115,9 @@ static void cGen( TreeNode * tree)
   TreeNode * p1, * p2, * p3;
   int savedLoc1,savedLoc2,currentLoc;
 
+  Symbol *symbol;
+  SymbolFunc *symbol_func;
+
     while(tree){
 
         switch (tree->astType) {
@@ -131,7 +134,8 @@ static void cGen( TreeNode * tree)
               
               if (TraceCode) emitComment("-> function:");
 
-              p1 = tree->child[3];/*body*/
+              p1 = tree->child[1];/*name*/
+              p2 = tree->child[3];/*body*/
 
               
               /*prepare bp & sp*/
@@ -139,10 +143,12 @@ static void cGen( TreeNode * tree)
               emitRM("ST",bp,0,sp,"push old bp");
               emitRM("LDA",bp,0,sp,"let bp == sp");
 
-              push_symtab(tree->symtab);
+              /*push param symtab*/
+              symbol_func = lookup(p1->attr.name);
+              push_symtab(symbol_func->symtab);
 
               /*generate body*/
-              cGen(p1); 
+              cGen(p2); 
 
               pop_symtab();
 
@@ -153,7 +159,7 @@ static void cGen( TreeNode * tree)
           case COMPOUND_AST:
              
               if (TraceCode) emitComment("-> compound");
-              p1 = tree->child[0];
+              p1 = tree->child[0];/*body*/
               push_symtab(tree->symtab);
               cGen(p1);
               pop_symtab();
@@ -231,7 +237,8 @@ static void cGen( TreeNode * tree)
 
           case VAR_AST:
              if(TraceCode) emitComment("-> variable");
-             symbol = lookup(tree->attr.name);
+             p1 = tree->child[0];
+             symbol = st_lookup(p1->attr.name);
              emitGetAddr(symbol);
              if(getValue){
               if(symbol->type == TYPE_ARRAY)
@@ -246,7 +253,7 @@ static void cGen( TreeNode * tree)
           case ARRAYVAR_AST:
              if(TraceCode) emitComment("-> array element");
              p1 = tree->child[0];/*name*/
-             p2 = tree->child[1];/*select exp*/
+             p2 = tree->child[1];/*index expression*/
              symbol = lookup(p1->attr.name);
              emitGetAddr(symbol);
              tmp = getValue;
@@ -358,8 +365,8 @@ static void cGen( TreeNode * tree)
              p1 = tree->child[0];/*name*/
              p2 = tree->child[1];/*arguments*/
 
-             funcinfo = lookup(p1->attr.name);
-             symbol = funcinfo->symtab->head;
+             symbol_func = lookup(p1->attr.name);
+             symbol = symbol_fun->symtab->head;
 
              while(symbol && p2){
                 cGen(p2);
@@ -370,7 +377,7 @@ static void cGen( TreeNode * tree)
                 p2 = p2->sibling;
              }
 
-             emitCall(funcinfo);
+             emitCall(symbol_func);
              
 
              if (TraceCode)  emitComment("<- call") ;
@@ -391,11 +398,16 @@ static void cGen( TreeNode * tree)
 void codeGen(TreeNode * syntaxTree)
 {  
    int loc;
+   SymbolFunc symbol_func;
+
+
+   int global_var_size = peek_symtab()->size;
 
    /* generate standard prelude */
    if (TraceCode) emitComment("Begin prelude");
-   emitRM("ST",zero,0,zero,"clear location 0");
    emitRM("LD",gp,0,zero,"load from location 0");
+   emitRM("ST",zero,0,zero,"clear location 0");
+   emitRM("LDA",sp,1-global_var_size,gp,"allocate for global variables");
    if (TraceCode) emitComment("End of prelude");
 
    /* Jump to main() */
@@ -403,7 +415,7 @@ void codeGen(TreeNode * syntaxTree)
    loc = emitSkip(6); /*A call consumes 5 instructions, and we need halt after main()*/
 
 
-   /* generate input/output function codes */
+   /* declare input/output functions */
    if (TraceCode) emitComment("Begin input()");
    emitRO("IN",ax,0,0,"read input into ax");
    emitRM("LDA",sp,1,sp,"pop prepare");
@@ -422,8 +434,8 @@ void codeGen(TreeNode * syntaxTree)
 
    /* Fill up jump-to-main code */
    emitBackup(loc);
-   funcinfo = lookup("main");
-   emitCall(funcinfo);
+   symbol_func = st_lookup("main");
+   emitCall(symbol_func);
    emitRO("HALT",0,0,0,"END OF PROGRAM");
 
 }

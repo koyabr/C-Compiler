@@ -30,16 +30,14 @@ struct symtab {
 typedef struct symbol_func SymbolFunc;
 struct symbol_func {
 	char *name;
+	int offset;
 	ExpType type;
+	struct symbol_func *next;
 
-	int address;
 	int param_size;
 	int var_size;
 
 	SymTab symtab;
-
-	struct symbol_func *next;
-
 };
 
  /* constructs the symbol table */
