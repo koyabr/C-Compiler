@@ -1,6 +1,5 @@
 #include "AST.h"
 
-
 void printNodeKind(struct ASTNode* node)
 {
 }
@@ -167,7 +166,7 @@ struct ASTNode* newStmt(struct ASTNode* stmt)
 {
      return stmt;
 }
-// stmt==NULL => expression_stmt: SEMI
+// expression_stmt: SEMI
 struct ASTNode* newExpStmt(struct ASTNode* expression)
 {
      struct ASTNode* root = newASTNode(EXPSTMT_AST);
@@ -295,12 +294,14 @@ struct ASTNode* newASTNode(ASTType type)
      node->child[3] = NULL;
      node->sibling = NULL;
      node->astType = type;
+     node->type = -1;
      return node;
 }
 struct ASTNode* newIDNode(char* ID)
 {
      struct ASTNode* root = newASTNode(ID_AST);
      root->attr.name = strdup(ID);
+     root->type = -1;
      return root;
 }
 struct ASTNode* newNumNode(int num)
@@ -309,7 +310,7 @@ struct ASTNode* newNumNode(int num)
      root->attr.value = num;
      return root;
 }
-<<<<<<< HEAD
+
 void printNodeKind(struct ASTNode* node)
 {
      if(node == NULL)

@@ -15,10 +15,10 @@
 %token LBracket RBracket LBrace RBrace Quote LSB RSB COMMA SEMI NEWLINE ASSIGN
 %token BLANK
 
- /* - + * / | & */
-%left MINUS PLUS MULTI DIV OR AND
- /* > < >= <= == || && */
-%left B S BE SE EQ COR CAND NE
+ /* - + * / */
+%left MINUS PLUS MULTI DIV
+ /* > < >= <= == != */
+%left B S BE SE EQ NE
 
 
 %token <value>NUMBER
@@ -123,8 +123,6 @@ relop: B					{$$ = B;}
 | BE						{$$ = BE;}
 | SE						{$$ = SE;}
 | EQ						{$$ = EQ;}
-| COR						{$$ = COR;}
-| CAND						{$$ = CAND;}
 | NE						{$$ = NE;}
 ;
 
