@@ -48,18 +48,22 @@ void buildSymtab(TreeNode *tree);
 /* performs type checking */
 void typeCheck(TreeNode *tree);
 
+/* new symboltal of certain scope */
+SymbolTable newSymbolTable(Scope s);
 
  /* Procedure st_insert inserts line numbers and
  * memory locations into the symbol table
  * loc = memory location is inserted only the
  * first time, otherwise ignored
  */
-void st_insert( char * name, int lineno, int loc );
+void st_insert( char * name, int lineno, int loc, ExpType type);
+void st_insert_fun(char* name, SymbolTable st, int num);
 
 /* Function st_lookup returns the memory 
  * location of a variable or -1 if not found
  */
-int st_lookup ( char * name );
+VarSymbol st_lookup( char * name );
+FunSymbol st_lookup_fun(char * name);
 
 /* Procedure printSymTab prints a formatted 
  * listing of the symbol table contents 

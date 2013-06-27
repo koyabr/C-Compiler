@@ -1,25 +1,9 @@
 #include "AST.h"
-
-void printNodeKind(struct ASTNode* node)
-{
-}
-void printAST(struct ASTNode* root, int indent)
-{
-     struct ASTNode* node = root;
-     int i;
-     while(node != NULL)
-     {
-          for (i = 0; i<indent; ++i)
-          {
-               printf(" ");
-          }
-          printNodeKind(node);
-          printAST(node->child[0], indent+4);
-          node = node->sibling;
-     }
-}
-
-
+#include "globals.h"
+#include "symtab.h"
+static int location = 0;
+static SymbolTable CompoundST = NULL;
+static SymbolTable ParamST = NULL;
 struct ASTNode* newProgram(struct ASTNode* decList)
 {
      return decList;
@@ -50,51 +34,89 @@ struct ASTNode* newDec(struct ASTNode* declaration, int type)
      return declaration;
 }
 // var_declaration: type_specifier ID SEMI
-struct ASTNode* newVarDec(struct ASTNode* typeSpecifier, char* ID)
+struct ASTNode* newVarDec(struct ASTNode* typeSpecifier, char* ID, int lineno)
 {
-     struct ASTNode* root = newASTNode(VARDEC_AST);
+     struct ASTNode* root = newASTNode(VARDEC_AST, lineno);
      root->child[0] = typeSpecifier;
-     root->child[1] = newIDNode(ID);
+     root->attr.name = strdup(ID);
+     root->type = TYPE_INTEGER;
+     pushTable(CompoundST);
+     VarSymbol vs = st_lookup(root->attr.name);
+     if(vs != NULL)
+          Error(root, "variable has been declared before");
+     else
+          st_insert(root->attr.name, lineno, location++, TYPE_INTEGER);
+     popTable();
      return root;
 }
 // var_declaration: type_specifier ID LSB NUMBER RSB SEMI
-struct ASTNode* newArrayDec(struct ASTNode* typeSpecifier, char* ID, int size)
+struct ASTNode* newArrayDec(struct ASTNode* typeSpecifier, char* ID, int size, int lineno)
 {
-     struct ASTNode* root = newASTNode(ARRAYDEC_AST);
+     struct ASTNode* root = newASTNode(ARRAYDEC_AST, lineno);
      root->child[0] = typeSpecifier;
-     root->child[1] = newIDNode(ID);
-     root->child[2] = newNumNode(size);
+     root->attr.name = strdup(ID);
+     root->type = TYPE_ARRAY;
+     root->attr.value = size;
+     pushTable(CompoundST);
+     VarSymbol vs = st_lookup(root->attr.name);
+     if(vs != NULL)
+          Error(root, "array has been declared before");
+     else
+     {
+          st_insert(root->attr.name, lineno, location, TYPE_ARRAY);
+          location += size;
+     }
+     popTable(CompoundST);
      return root;
 }
-struct ASTNode* newTypeSpe(ExpType type)
+struct ASTNode* newTypeSpe(ExpType type, int lineno)
 {
-     struct ASTNode* root = newASTNode(TYPE_AST);
+     struct ASTNode* root = newASTNode(TYPE_AST, lineno);
      root->type = type;
      return root;
 }
 // fun_declaration: type_specifier ID LBracket params RBracket compound_stmt
-struct ASTNode* newFunDec(struct ASTNode* typeSpecifier, char* ID, struct ASTNode* params, struct ASTNode* compound)
+struct ASTNode* newFunDec(struct ASTNode* typeSpecifier, char* ID, struct ASTNode* params, struct ASTNode* compound, int lineno)
 {
-     struct ASTNode* root = newASTNode(FUNDEC_AST);
+     struct ASTNode* root = newASTNode(FUNDEC_AST, lineno);
+     struct ASTNode* temp = NULL;
      root->child[0] = typeSpecifier;
-     root->child[1] = newIDNode(ID);
-     root->child[2] = params;
-     root->child[3] = compound;
+     root->child[1] = params;
+     root->child[2] = compound;
+     root->attr.name = strdup(ID);
+     FunSymbol fs = st_lookup_fun(ID);
+     /* check if the function has been declared before */
+     if(fs != NULL)
+          Error(root, "array has been declared before");
+     else
+     {
+          root->symbolTable = ParamST;
+          st_insert_fun(root->attr.name, ParamST, params->attr.value);
+          ParamST = newSymbolTable(PARAM);
+     }
+     /* type check of return and declaration */
+     if(root->child[0]->type != root->child[2]->type)
+     {
+          fprintf(stderr, "%d: return type is conflict with function declaration\n", root->lineno);
+     }
      return root;
 }
 // paramList==NULL => params: VOID
 struct ASTNode* newParams(struct ASTNode* paramList)
 {
      // params: param_list
+     int num = 0;
+     struct ASTNode* temp;
      struct ASTNode* root = NULL;
      if(paramList != NULL)
      {
+          for(temp=paramList;temp!=NULL;temp++)
+               num++;
+          paramList->attr.value = num;
           return paramList;
      }
      else
      {
-          /* root = newASTNode(TYPE_AST); */
-          /* root->type = TYPE_VOID; */
           return NULL;
      }
 }
@@ -116,30 +138,35 @@ struct ASTNode* newParamList(struct ASTNode* paramList, struct ASTNode* param)
      }
 }
 // type: 1=id is array 0=otherwise
-struct ASTNode* newParam(struct ASTNode* typeSpecifier, char* ID, int type)
+struct ASTNode* newParam(struct ASTNode* typeSpecifier, char* ID, int type, int lineno)
 {
      // param: type_specifier ID
      struct ASTNode* root = NULL;
      if(type == 0)
      {
-          root = newASTNode(PARAMID_AST);
+          root = newASTNode(PARAMID_AST, lineno);
           root->child[0] = typeSpecifier;
-          root->child[1] = newIDNode(ID);
+          root->attr.name = strdup(ID);
+          root->type = TYPE_INTEGER;
      }
      else // param: type_specifier ID LSB RSB
      {
-          root = newASTNode(PARAMARRAY_AST);
+          root = newASTNode(PARAMARRAY_AST, lineno);
           root->child[0] = typeSpecifier;
-          root->child[1] = newIDNode(ID);
+          root->attr.name = strdup(ID);
+          root->type = TYPE_ARRAY;
      }
      return root;
 }
-struct ASTNode* newCompound(struct ASTNode* localDecs, struct ASTNode* stmtList)
+struct ASTNode* newCompound(struct ASTNode* localDecs, struct ASTNode* stmtList, int lineno)
 {
      struct ASTNode* node = localDecs;
-     struct ASTNode* root = newASTNode(COMPOUND_AST);
+     struct ASTNode* root = newASTNode(COMPOUND_AST, lineno);
      root->child[0] = localDecs;
      root->child[1] = stmtList;
+     root->type = stmtList->type;
+     root->symbolTable = CompoundST;
+     CompoundST = newSymbolTable(LOCAL);
 }
 struct ASTNode* newLocalDecs(struct ASTNode* localDecs, struct ASTNode* varDec)
 {
@@ -167,70 +194,109 @@ struct ASTNode* newStmt(struct ASTNode* stmt)
      return stmt;
 }
 // expression_stmt: SEMI
-struct ASTNode* newExpStmt(struct ASTNode* expression)
+struct ASTNode* newExpStmt(struct ASTNode* expression, int lineno)
 {
-     struct ASTNode* root = newASTNode(EXPSTMT_AST);
+     struct ASTNode* root = newASTNode(EXPSTMT_AST, lineno);
      root->child[0] =expression;
+     root->type = expression->type;
      return root;
 }    
-struct ASTNode* newSelectStmt(struct ASTNode* expression, struct ASTNode* stmt, struct ASTNode* elseStmt)
+struct ASTNode* newSelectStmt(struct ASTNode* expression, struct ASTNode* stmt, struct ASTNode* elseStmt, int lineno)
 {
-     struct ASTNode* root = newASTNode(SELESTMT_AST);
+     struct ASTNode* root = newASTNode(SELESTMT_AST, lineno);
      root->child[0] = expression;
      root->child[1] = stmt;
      root->child[2] = elseStmt;
      return root;
 }
-struct ASTNode* newIterStmt(struct ASTNode* expression,  struct ASTNode* stmt)
+struct ASTNode* newIterStmt(struct ASTNode* expression,  struct ASTNode* stmt, int lineno)
 {
      assert(expression != NULL);
-     struct ASTNode* root = newASTNode(ITERSTMT_AST);
+     struct ASTNode* root = newASTNode(ITERSTMT_AST, lineno);
      root->child[0] = expression;
      root->child[1] = stmt;
      return root;
 }
 // expression=NULL => return_stmt: RETURN SEMI;
-struct ASTNode* newRetStmt(struct ASTNode* expression)
+struct ASTNode* newRetStmt(struct ASTNode* expression, int lineno)
 {
-     struct ASTNode* root = newASTNode(RETSTMT_AST);
+     struct ASTNode* root = newASTNode(RETSTMT_AST, lineno);
      root->child[0] = expression;
+     if(expression != NULL)
+          root->type = expression->type;
+     else
+          root->type = TYPE_VOID;
      return root;
 }
 // assign statement
-struct ASTNode* newAssignExp(struct ASTNode* var, struct ASTNode* expression)
+struct ASTNode* newAssignExp(struct ASTNode* var, struct ASTNode* expression, int lineno)
 {
-     struct ASTNode* root = newASTNode(ASSIGN_AST);
+     struct ASTNode* root = newASTNode(ASSIGN_AST, lineno);
      root->child[0] = var;
      root->child[1] = expression;
+     if(!(var->type==TYPE_INTEGER && expression->type==TYPE_INTEGER))
+          Error(root, "type mismatch");
      return root;
 }
 struct ASTNode* newExpression(struct ASTNode* simpExp)
 {
      return simpExp;
 }
-struct ASTNode* newVar(char* ID)
+struct ASTNode* newVar(char* ID, int lineno)
 {
-     struct ASTNode* root = newASTNode(VAR_AST);
-     root->child[0] = newIDNode(ID);
+     struct ASTNode* root = newASTNode(VAR_AST, lineno);
+     VarSymbol vs = st_lookup(ID);
+     if( vs == NULL)
+          Error(root, "variable not defined");
+     else
+          root->attr.name = vs->name;
      return root;
 }
-struct ASTNode* newArrayVar(char* ID, struct ASTNode* expression)
+struct ASTNode* newArrayVar(char* ID, struct ASTNode* expression, int lineno)
 {
-     struct ASTNode* root = newASTNode(ARRAYVAR_AST);
-     root->child[0] = newIDNode(ID);
-     root->child[1] = expression;
+     struct ASTNode* root = newASTNode(ARRAYVAR_AST, lineno);
+     VarSymbol vs = st_lookup(ID);
+     if( vs == NULL)
+          Error(root, "variable not defined");
+     else
+          root->attr.name = vs->name;
+     if( vs->type != TYPE_ARRAY)
+          Error(root, "variable is not array");
+     else
+     {
+          if(expression->type != TYPE_INTEGER)
+               Error(root, "type mismatch");
+          else
+               root->child[0] = expression;
+     }
      return root;
 }
-struct ASTNode* newSimpExp(struct ASTNode* addExp1, int relop, struct ASTNode* addExp2)
+struct ASTNode* newSimpExp(struct ASTNode* addExp1, int relop, struct ASTNode* addExp2, int lineno)
 {
      struct ASTNode* root = NULL;
      /* simple_expression: additive_expression relop additive_expression */
      if(relop != -1)            
      {
-          root = newASTNode(EXP_AST);
+          root = newASTNode(EXP_AST, lineno);
           root->child[0] = addExp1;
           root->child[1] = addExp2;
           root->attr.op = relop;
+          if(root->attr.op == PLUS || root->attr.op == MINUS ||
+             root->attr.op == MULTI || root->attr.op == DIV)
+          {
+               if(!(addExp1->type == TYPE_INTEGER && addExp2->type == TYPE_INTEGER))
+                    Error(root, "type mismatch");
+               else
+                    root->type = TYPE_INTEGER;
+          }
+          else
+          {
+               if(!(addExp1->type == TYPE_BOOLEAN && addExp2->type ==TYPE_BOOLEAN))
+                    Error(root, "type mismatch");
+               else
+                    root->type = TYPE_BOOLEAN;
+          }
+             
      }
      else                       /* simple_expression: additive_expression  */
      {
@@ -242,35 +308,42 @@ struct ASTNode* newRelop(int opType)
 {
      return NULL;
 }
-struct ASTNode* newAddExp(struct ASTNode* addExp, int addop, struct ASTNode* term)
+struct ASTNode* newAddExp(struct ASTNode* addExp, int addop, struct ASTNode* term, int lineno)
 {
-     struct ASTNode* root = newASTNode(EXP_AST);
+     struct ASTNode* root = newASTNode(EXP_AST, lineno);
      root->child[0] = addExp;
      root->child[1] = term;
      root->attr.op = addop;
+     root->type = TYPE_INTEGER;
+     if(!(addExp->type == TYPE_INTEGER && term->type == TYPE_INTEGER))
+          Error(root, "type mismatch");
      return root;
 }
 struct ASTNode* newAddOp(int opType)
 {
      return NULL;
 }
-struct ASTNode* newTerm(struct ASTNode* term, int mulop, struct ASTNode* factor)
+struct ASTNode* newTerm(struct ASTNode* term, int mulop, struct ASTNode* factor, int lineno)
 {
-     struct ASTNode* root = newASTNode(EXP_AST);
+     struct ASTNode* root = newASTNode(EXP_AST, lineno);
      root->child[0] = term;
      root->child[1] = factor;
      root->attr.op = mulop;
+     root->type = TYPE_INTEGER;
+     if(!(term->type == TYPE_INTEGER && factor->type == TYPE_INTEGER))
+          Error(root, "type mismatch");
      return root;
 }
 struct ASTNode* newTermFactor(struct ASTNode* factor)
 {
      return factor;
 }
-struct ASTNode* newCall(char* ID, struct ASTNode* args)
+struct ASTNode* newCall(char* ID, struct ASTNode* args, int lineno)
 {
-     struct ASTNode* root = newASTNode(CALLSTMT_AST);
-     root->child[0] = newIDNode(ID);
-     root->child[1] = args;
+     struct ASTNode* root = newASTNode(CALLSTMT_AST, lineno);
+     root->child[0] = args;
+     root->attr.name = strdup(ID);
+     /* TODO */
      return root;
 }
 struct ASTNode* newArgs(struct ASTNode* argList)
@@ -285,7 +358,7 @@ struct ASTNode* newArgList(struct ASTNode* argList, struct ASTNode* expression)
      node->sibling = expression;
      return argList;
 }
-struct ASTNode* newASTNode(ASTType type)
+struct ASTNode* newASTNode(ASTType type, int lineno)
 {
      struct ASTNode* node = (struct ASTNode*)malloc(sizeof(struct ASTNode));
      node->child[0] = NULL;
@@ -295,20 +368,8 @@ struct ASTNode* newASTNode(ASTType type)
      node->sibling = NULL;
      node->astType = type;
      node->type = -1;
+     node->lineno = lineno;
      return node;
-}
-struct ASTNode* newIDNode(char* ID)
-{
-     struct ASTNode* root = newASTNode(ID_AST);
-     root->attr.name = strdup(ID);
-     root->type = -1;
-     return root;
-}
-struct ASTNode* newNumNode(int num)
-{
-     struct ASTNode* root = newNumNode(NUM_AST);
-     root->attr.value = num;
-     return root;
 }
 
 void printNodeKind(struct ASTNode* node)
@@ -368,18 +429,6 @@ void printNodeKind(struct ASTNode* node)
      case CALLSTMT_AST:
           printf("Call stement \n");
           break;
-     case ARGS_AST:
-          printf("Args\n");
-          break;
-     case ARGLIST_AST:
-          printf("Arg List \n");
-          break;
-     case NUM_AST:
-          printf("Number AST: %d\n", node->attr.value);
-          break;
-     case ID_AST:
-          printf("ID AST: %s\n", node->attr.name);
-          break;
      default:
           printf("No such AST type\n");
           break;
@@ -403,5 +452,3 @@ void printAST(struct ASTNode* root, int indent)
           node = node->sibling;
      }
 }
-=======
->>>>>>> 9c91ddf6d4195db04509bdc2900b287d16acad84

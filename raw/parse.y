@@ -35,7 +35,6 @@
 %union{
      char* name; /* terminal token: for symbol's name */
      int value; /* terminal token: for number */
-     struct symbol sym; /* unterminal token: symbol */
      struct ASTNode* node; /* unterminal token: abstract syntax tree node */
  }
 
@@ -165,4 +164,5 @@ arg_list: arg_list COMMA expression		{$$ = newArgList($1, $3);}
 int yyerror(char *errmsg)
 {
      fprintf(stderr, "%d: %s at '%s' \n", yylineno, errmsg, yytext);
+     return 0;
 }

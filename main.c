@@ -5,7 +5,6 @@ Compiler Design Course Project
 
 #include "globals.h"
 #include "utils.h"
-#include "scan.h"
 #include "parse.h"
 #include "symtab.h"
 #include "codegen.h"
@@ -27,7 +26,14 @@ int TraceCode = FALSE;
 int Error = FALSE;
 
 
+void init()
+{
+     extern SymbolTable CompoundST;
+     extern SymbolTable ParamST;
 
+     CompoundST = newSymbolTable(LOCAL);
+     ParamST = newSymbolTabl(PARAM);
+}
 int main(int argc, char *argv[])
 {
   

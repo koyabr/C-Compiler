@@ -15,6 +15,15 @@
 #define TRUE 1
 #endif
 
+
+/* SIZE is the size of the hash table */
+#define SIZE 211
+
+/* SHIFT is the power of two used as multiplier
+   in hash function  */
+#define SHIFT 4
+
+
 /* number of reserved words */
 #define MAXRESERVED 6
 
@@ -32,14 +41,9 @@ extern char* yytext;
 
 #define MAXCHILDREN 4
 
-typedef enum {StmtK,ExpK} NodeKind;
-typedef enum {IfK,RepeatK,AssignK,ReadK,WriteK} StmtKind;
-typedef enum {OpK,ConstK,IdK,ASTK} ExpKind;
-
+typedef enum{GLOBAL, LOCAL, PARAM} Scope;
 /* ExpType is used for type checking */
-typedef enum {TYPE_INTEGER, TYPE_VOID, TYPE_ARRAY} ExpType;
-
-
+typedef enum {TYPE_INTEGER, TYPE_VOID, TYPE_ARRAY, TYPE_BOOLEAN} ExpType;
 typedef enum {VARDEC_AST, ARRAYDEC_AST, FUNDEC_AST,
               TYPE_AST,
               PARAMID_AST, PARAMARRAY_AST,
@@ -47,34 +51,49 @@ typedef enum {VARDEC_AST, ARRAYDEC_AST, FUNDEC_AST,
               EXPSTMT_AST, SELESTMT_AST, ITERSTMT_AST, RETSTMT_AST, ASSIGN_AST,
               EXP_AST, VAR_AST, ARRAYVAR_AST,
               FACTOR_AST,
-              CALLSTMT_AST, ARGS_AST, ARGLIST_AST, NUM_AST, ID_AST} 
-  ASTType;
+              CALLSTMT_AST} ASTType;
 
-typedef struct ASTNode TreeNode;
+struct VarSymbol {
+     char* name;
+     ExpType type;
+     int offset;
+     struct VarSymbol* next;
+};
+struct SymbolTable {
+     int startOffset;
+     Scope scope;
+     struct VarSymbol* hashTable[SIZE];
+     struct SymbolTable* next;
+};
+struct FunSymbol {
+     char* name;
+     Scope scope;
+     int paramNum;
+     struct SymbolTable* symbolTable;
+     struct FunSymbol* next;
+};
 struct ASTNode{
      int lineno;
      struct ASTNode* child[MAXCHILDREN];
      struct ASTNode* sibling;
-     NodeKind nodekind;
-     union { StmtKind stmt; ExpKind exp;} kind;
      ASTType astType;
-     union{
-          TokenType op;
+     struct{
+          int op;
           int value;
           char* name;
      } attr;
+     struct SymbolTable* symbolTable;
      ExpType type; /* for type checking of exps */
 };
 
-/* For symbol table */
-struct symbol{
-     char* name;               /* variable's name */
-     ExpType type;        /* variable's type */
-     int int_value;            /* variable's value if type==INTEGER */
-     int num;                  /* length if type==array */
-     ExpType array_type; /* type of array variable if type ==array */     
-     int mem_location;        /* variable's location in TM memory  */
-};
+
+typedef struct ASTNode TreeNode;
+
+typedef struct VarSymbol* VarSymbol;
+
+typedef struct FunSymbol* FunSymbol;
+
+typedef struct SymbolTable* SymbolTable;
 
 extern TreeNode *ASTRoot;
 
@@ -114,6 +133,5 @@ extern int TraceAnalyze;
 extern int TraceCode;
 
 /* Error = TRUE prevents further passes if an error occurs */
-extern int Error; 
 
 #endif
