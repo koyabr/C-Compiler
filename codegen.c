@@ -115,7 +115,7 @@ static int getValue = 1;
 
 
 /* recursively generates code by tree traversal */
-static void cGen( TreeNode * tree)
+void cGen( TreeNode * tree)
 { 
   int tmp;
   TreeNode * p1, * p2, * p3;
@@ -408,16 +408,14 @@ static void cGen( TreeNode * tree)
 void codeGen()
 {  
    int loc;
-   SymbolFunc symbol_func;
+   FunSymbol* fun;
 
-
-   int global_var_size = peek_symtab()->size;
 
    /* generate standard prelude */
    if (TraceCode) emitComment("Begin prelude");
    emitRM("LD",gp,0,zero,"load from location 0");
    emitRM("ST",zero,0,zero,"clear location 0");
-   emitRM("LDA",sp,1-global_var_size,gp,"allocate for global variables");
+   emitRM("LDA",sp,-(topTable()->size),gp,"allocate for global variables");
    if (TraceCode) emitComment("End of prelude");
 
    /* Jump to main() */
@@ -427,11 +425,15 @@ void codeGen()
 
    /* declare input/output functions */
    if (TraceCode) emitComment("Begin input()");
+   fun = lookup_fun("input");
+   fun->offset = emitSkip(0);
    emitRO("IN",ax,0,0,"read input into ax");
    emitRM("LDA",sp,1,sp,"pop prepare");
    emitRM("LD",pc,-1,sp,"pop return addr");
    if (TraceCode) emitComment("End input()");
+
    if (TraceCode) emitComment("Begin output()");
+   fun = lookup_fun("output");
    emitRM("LD",ax,1,sp,"load param into ax");
    emitRO("OUT",ax,0,0,"output using ax");
    emitRM("LDA",sp,1,sp,"pop prepare");
@@ -439,13 +441,13 @@ void codeGen()
    if (TraceCode) emitComment("End output()");
 
 
-   /* generate code for source */
+   /* generate code for syntax tree */
    cGen(ASTRoot);
 
    /* Fill up jump-to-main code */
    emitBackup(loc);
-   symbol_func = st_lookup("main");
-   emitCall(symbol_func);
+   fun = lookup_fun("main");
+   emitCall(fun);
    emitRO("HALT",0,0,0,"END OF PROGRAM");
 
 }

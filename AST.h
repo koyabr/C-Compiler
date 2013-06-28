@@ -6,12 +6,10 @@
 
 #include "globals.h"
 
-/* Procedure printAST prints a formatted 
- * listing of the syntax tree contents 
- * to the listing file
- */
-void printAST(TreeNode* root, int indent);
-  /* counter for variable memory locations */
+
+/* make a new raw AST tree node */
+TreeNode* newASTNode(ASTType asttype, int lineno);
+
 
 TreeNode* newProgram(TreeNode* decList);
 TreeNode* newDecList(TreeNode* decList, TreeNode* declaration); // decList==NULL => declaration
@@ -35,22 +33,23 @@ TreeNode* newAssignExp(TreeNode* var, TreeNode* expressio, int linenon); // assi
 TreeNode* newExpression(TreeNode* simpExp);
 TreeNode* newVar(char* ID, int lineno);
 TreeNode* newArrayVar(char* ID, TreeNode* expression, int lineno);
-// relop==NULL & addExp2==NULL => simple_expression: additive expression
 TreeNode* newSimpExp(TreeNode* addExp1, int relop, TreeNode* addExp2, int lineno);
 
-TreeNode* newRelop(int opType);
+
 TreeNode* newAddExp(TreeNode* addExp, int addop, TreeNode* term, int lineno);
-TreeNode* newAddOp(int opType);
 TreeNode* newTerm(TreeNode* term, int mulop, TreeNode* factor, int lineno);
 TreeNode* newTermFactor(TreeNode* factor);
-TreeNode* newMulop(int opType);
-TreeNode* newFactorExp(TreeNode* expression);
-TreeNode* newFactorVar(TreeNode* var);
-TreeNode* newFactorCall(TreeNode* call);
-TreeNode* newFactorNum(int num);
+TreeNode* newNumNode(int num, int lineno);
 TreeNode* newCall(char* ID, TreeNode* args, int lineno);
 TreeNode* newArgs(TreeNode* argList); // argList=NULL => args:
 TreeNode* newArgList(TreeNode* argList, TreeNode* expression); // argList==NULL
-TreeNode* newASTNode(ASTType asttype, int lineno);
+
+
+
+
+
+/* prints a formatted listing of the syntax tree contents */
+void printAST(TreeNode* root, int indent);
+
 
 #endif

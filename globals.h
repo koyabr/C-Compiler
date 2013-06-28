@@ -15,27 +15,21 @@
 #define TRUE 1
 #endif
 
-#define ASSERT(x) for(;!(x);assert(x))
 
+#define ASSERT(x) for(;!(x);assert(x))
 #define MAXSTACK 100
 
-/* SIZE is the size of the hash table */
-#define SIZE 211
+#define DEBUG
 
-/* SHIFT is the power of two used as multiplier
-   in hash function  */
-#define SHIFT 4
 
 
 extern FILE* source; /* source code text file */
 extern FILE* listing; /* listing output text file */
 extern FILE* code; /* code text file for TM simulator */
 
-extern int yylineno;
-extern char* yytext;
-
 extern SymbolTable* CompoundST;
 extern SymbolTable* ParamST;
+
 
 /**************************************************/
 /***********   Syntax tree for parsing ************/
@@ -55,7 +49,7 @@ typedef enum {VARDEC_AST, ARRAYDEC_AST, FUNDEC_AST,
               EXPSTMT_AST, SELESTMT_AST, ITERSTMT_AST, RETSTMT_AST, ASSIGN_AST,
               EXP_AST, VAR_AST, ARRAYVAR_AST,
               FACTOR_AST,
-              CALLSTMT_AST} ASTType;
+              CALLSTMT_AST, NUM_AST} ASTType;
 
 typedef struct var_symbol VarSymbol;
 struct var_symbol {
@@ -68,7 +62,7 @@ struct var_symbol {
 
 typedef struct symbol_table SymbolTable;
 struct symbol_table {
-     int startOffset;
+     int size;
      Scope scope;
      VarSymbol* hashTable[SIZE];
      struct symbol_table* next;
@@ -101,7 +95,9 @@ struct ASTNode{
 };
 
 
-
+extern SymbolTable* CompoundST;
+extern SymbolTable* ParamST;
+extern SymbolTable* tables;
 extern TreeNode *ASTRoot;
 
 

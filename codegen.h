@@ -19,13 +19,11 @@
 
 /* code emitting utilities */
 
-/* Procedure emitComment prints a comment line 
- * with comment c in the code file
+/* prints a comment line with comment c in the code file
  */
 void emitComment( char * c );
 
-/* Procedure emitRO emits a register-only
- * TM instruction
+/* emits a register-only TM instruction
  * op = the opcode
  * r = target register
  * s = 1st source register
@@ -34,8 +32,7 @@ void emitComment( char * c );
  */
 void emitRO( char *op, int r, int s, int t, char *c);
 
-/* Procedure emitRM emits a register-to-memory
- * TM instruction
+/* emits a register-to-memory TM instruction
  * op = the opcode
  * r = target register
  * d = the offset
@@ -44,40 +41,37 @@ void emitRO( char *op, int r, int s, int t, char *c);
  */
 void emitRM( char * op, int r, int d, int s, char *c);
 
-/* Function emitSkip skips "howMany" code
- * locations for later backpatch. It also
- * returns the current code position
+/* skips "howMany" code locations for later backpatch. 
+ * It also returns the current code position
  */
 int emitSkip( int howMany);
 
-/* Procedure emitBackup backs up to 
- * loc = a previously skipped location
+/* backs up to loc = a previously skipped location
  */
 void emitBackup( int loc);
 
-/* Procedure emitRestore restores the current 
- * code position to the highest previously
- * unemitted position
+/* restores the current code position to the highest previously unemitted position
  */
 void emitRestore(void);
 
 
 
-/* emits 5 instructions to call a function*/
-void emitCall(funcinfo);
-
 /* emit one instruction to get the address of a symbol */
-void emitGetAddr(symbol);
+void emitGetAddr(VarSymbol* var);
+
+/* emits 5 instructions to call a function*/
+void emitCall(FunSymbol* fun);
 
 
 
-/* Procedure codeGen generates code to a code
- * file by traversal of the syntax tree. The
- * second parameter (codefile) is the file name
- * of the code file, and is used to print the
- * file name as a comment in the code file
+
+/* recursively generates code by tree traversal */
+void cGen( TreeNode * tree);
+
+/* primary function
+ * visit the syntax tree and generate codes
  */
-void codeGen(TreeNode * syntaxTree);
+void codeGen();
 
 
 #endif
