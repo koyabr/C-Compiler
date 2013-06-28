@@ -1,12 +1,27 @@
 #include "globals.h"
 #include "AST.h"
 #include "symtab.h"
+#include "string.h"
 
 static int location = 0;
+static int stack[MAXSTACK];
+static int sp = 0;
 static SymbolTable* CompoundST = NULL;
 static SymbolTable* ParamST = NULL;
 TreeNode * ASTRoot; /*Root of syntax tree*/
 
+int popLocation()
+{
+     assert(sp>0);
+     sp--;
+     return stack[sp+1];
+}
+void pushLocation(int loc)
+{
+     assert(sp<=MAXSTACK);
+     stack[sp] = loc;
+     sp++;
+}
 /* Add declaration as sibling*/
 TreeNode* newDecList(TreeNode* decList, TreeNode* declaration)
 {
@@ -33,7 +48,7 @@ TreeNode* newVarDec(TreeNode* typeSpecifier, char* ID, int lineno)
      if(vs != NULL)
           Error(root, "variable has been declared before");
      else
-          st_insert(root->attr.name, lineno, location++, TYPE_INTEGER);
+          st_insert(root->attr.name, GLOBAL, CompoundST->startOffset++, TYPE_INTEGER);
      popTable();
      return root;
 }
@@ -51,8 +66,8 @@ TreeNode* newArrayDec(TreeNode* typeSpecifier, char* ID, int size, int lineno)
           Error(root, "array has been declared before");
      else
      {
-          st_insert(root->attr.name, lineno, location, TYPE_ARRAY);
-          location += size;
+          st_insert(root->attr.name, GLOBAL, CompoundST->startOffset, TYPE_ARRAY);
+          st->startOffset += size;
      }
      popTable(CompoundST);
      return root;
@@ -139,7 +154,7 @@ TreeNode* newParam(TreeNode* typeSpecifier, char* ID, int type, int lineno)
           if(st_lookup(root->attr.name) != NULL)
                Error(root, "parameter has been declared before");
           else
-               st_insert(root->attr.name, lineno, location , TYPE_INTEGER)
+               st_insert(root->attr.name, PARAM, ParamST->startOffset++ , TYPE_INTEGER)
           popTable();
           root->type = TYPE_INTEGER;
      }
@@ -152,7 +167,7 @@ TreeNode* newParam(TreeNode* typeSpecifier, char* ID, int type, int lineno)
           if(st_lookup(root->attr.name) != NULL)
                Error(root, "parameter has been declared before");
           else
-               st_insert(root->attr.name, lineno, location , TYPE_ARRAY)
+               st_insert(root->attr.name, PARAM, ParamST->startOffset++ , TYPE_ARRAY)
           popTable();
           root->type = TYPE_ARRAY;
      }
@@ -162,12 +177,21 @@ TreeNode* newCompound(TreeNode* localDecs, TreeNode* stmtList, int lineno)
 {
      TreeNode* node = localDecs;
      TreeNode* root = newASTNode(COMPOUND_AST, lineno);
+     VarSymbol vs = NULL;
      root->child[0] = localDecs;
      root->child[1] = stmtList;
      root->type = stmtList->type;
-     CompoundST = newSymbolTable(LOCAL);
      root->symbolTable = CompoundST;
-     
+
+     pushTable(CompoundST);
+     for(node = localDecs; node!=NULL; node=node->sibling)
+     {
+          vs = look_up(node->attr.name);
+          assert(vs != NULL);
+          vs->scope = LOCAL;
+     }
+     popTable();
+     CompoundST = newSymbolTable(LOCAL);
 }
 TreeNode* newLocalDecs(TreeNode* localDecs, TreeNode* varDec)
 {
