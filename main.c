@@ -24,8 +24,11 @@ int TraceAnalyze = FALSE;
 int TraceCode = FALSE;
 
 int Error = FALSE;
-SymbolTable CompoundST;
-SymbolTable ParamST;
+
+TreeNode * ASTRoot; /*Root of syntax tree*/
+
+SymbolTable CompoundST; /*Temporary symbol table for compound*/
+SymbolTable ParamST;/* Tempopary symbol table for parameters */
 
 void init()
 {

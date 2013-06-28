@@ -6,7 +6,7 @@
 static int location = 0;
 static int stack[MAXSTACK];
 static int sp = 0;
-TreeNode * ASTRoot; /*Root of syntax tree*/
+
 
 int popLocation()
 {
@@ -42,7 +42,7 @@ TreeNode* newVarDec(TreeNode* typeSpecifier, char* ID, int lineno)
      root->attr.name = strdup(ID);
      root->type = TYPE_INTEGER;
      pushTable(CompoundST);
-     VarSymbol vs = st_lookup(root->attr.name);
+     VarSymbol* vs = st_lookup(root->attr.name);
      if(vs != NULL)
           Error(root, "variable has been declared before");
      else
@@ -59,7 +59,7 @@ TreeNode* newArrayDec(TreeNode* typeSpecifier, char* ID, int size, int lineno)
      root->type = TYPE_ARRAY;
      root->attr.value = size;
      pushTable(CompoundST);
-     VarSymbol vs = st_lookup(root->attr.name);
+     VarSymbol* vs = st_lookup(root->attr.name);
      if(vs != NULL)
           Error(root, "array has been declared before");
      else
@@ -85,13 +85,13 @@ TreeNode* newFunDec(TreeNode* typeSpecifier, char* ID, TreeNode* params, TreeNod
      root->child[1] = params;
      root->child[2] = compound;
      root->attr.name = strdup(ID);
-     FunSymbol fs = st_lookup_fun(ID);
+     FunSymbol* fs = st_lookup_fun(ID);
      /* check if the function has been declared before */
      if(fs != NULL)
           Error(root, "array has been declared before");
      else
      {
-          root->symbolTable = ParamST;
+          root->SymbolTable* = ParamST;
           st_insert_fun(root->attr.name, ParamST, params->attr.value);
           ParamST = newSymbolTable(PARAM);
      }
@@ -175,11 +175,11 @@ TreeNode* newCompound(TreeNode* localDecs, TreeNode* stmtList, int lineno)
 {
      TreeNode* node = localDecs;
      TreeNode* root = newASTNode(COMPOUND_AST, lineno);
-     VarSymbol vs = NULL;
+     VarSymbol* vs = NULL;
      root->child[0] = localDecs;
      root->child[1] = stmtList;
      root->type = stmtList->type;
-     root->symbolTable = CompoundST;
+     root->SymbolTable* = CompoundST;
 
      pushTable(CompoundST);
      for(node = localDecs; node!=NULL; node=node->sibling)

@@ -249,7 +249,7 @@ static void cGen( TreeNode * tree)
              emitGetAddr(var);
 
              if(getValue){
-              if(symbol->type == TYPE_ARRAY)
+              if(var->type == TYPE_ARRAY)
                 emitRM("LDA",ax,0,bx,"get array variable value( == address)");
               else
                 emitRM("LD",ax,0,bx,"get variable value");
@@ -262,7 +262,7 @@ static void cGen( TreeNode * tree)
              if(TraceCode) emitComment("-> array element");
              p1 = tree->child[0];/*index expression*/
 
-             var = lookup(p1->attr.name);
+             var = lookup(tree->attr.name);
              emitGetAddr(var);
 
              tmp = getValue;
@@ -273,7 +273,7 @@ static void cGen( TreeNode * tree)
              emitRO("SUB",bx,bx,ax,"get address of array element");
              if(getValue)
                 emitRM("LD",ax,0,bx,"get value of array element");
-              
+
              if(TraceCode) emitComment("<- array element");
              break;
 
@@ -322,7 +322,8 @@ static void cGen( TreeNode * tree)
                    emitRO("DIV",ax,bx,ax,"op /");
                    break;
                 case EQ :
-                   emitRO("SUB",ax,bx,ax,"op ==") ;
+                   emitRO("SUB",a
+                    x,bx,ax,"op ==") ;
                    emitRM("JEQ",ax,2,pc,"br if true") ;
                    emitRM("LDC",ax,0,0,"false case") ;
                    emitRM("LDA",pc,1,pc,"unconditional jmp") ;

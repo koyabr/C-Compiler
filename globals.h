@@ -34,8 +34,8 @@ extern FILE* code; /* code text file for TM simulator */
 extern int yylineno;
 extern char* yytext;
 
-extern SymbolTable CompoundST;
-extern SymbolTable ParamST;
+extern SymbolTable* CompoundST;
+extern SymbolTable* ParamST;
 
 /**************************************************/
 /***********   Syntax tree for parsing ************/
