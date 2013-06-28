@@ -26,7 +26,7 @@
    in hash function  */
 #define SHIFT 4
 
-#define DEBUG
+//#define DEBUG_SYM
 
 extern FILE* source; /* source code text file */
 extern FILE* listing; /* listing output text file */
@@ -105,7 +105,7 @@ extern SymbolTable* ParamST;
 extern SymbolTable* tables;
 extern TreeNode *ASTRoot;
 
-void ErrorMsg(TreeNode* t, char* message);
+void ErrorMsg(TreeNode* t, char* message, char* ID);
 
 
 /**************************************************/

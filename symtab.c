@@ -66,9 +66,9 @@ VarSymbol* lookup_var (char * name)
      int h = hash(name);
      SymbolTable* st = NULL;
      assert(tables != NULL);
-     for(st = tables; st!=NULL; st=st->next)
+     for(st = tables; st!=NULL; st=st->next) /* iteration of all symbol tables in stack */
      {
-          for(l = tables->hashTable[h]; l!=NULL; l=l->next)
+          for(l = st->hashTable[h]; l!=NULL; l=l->next) /* iteration of all linkedlist in a symboltable */
           {
                if(strcmp(l->name, name)==0)
                     return l;
@@ -147,11 +147,12 @@ void printSymTab(SymbolTable* st)
                fprintf(listing, "\n");
           }
      }
+     fprintf(listing, "\n");
 } /* printSymTab */
 
 
 
-void ErrorMsg(TreeNode* t, char* message)
+void ErrorMsg(TreeNode* t, char* message, char* ID)
 {
-     fprintf(stderr,"Error at line %d: %s\n",t->lineno,message);
+     fprintf(stderr,"Error at line %d: %s %s\n",t->lineno,message, ID);
 }

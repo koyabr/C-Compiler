@@ -61,6 +61,9 @@ type_specifier: INT				{$$ = newTypeSpe(TYPE_INTEGER, yylineno);}
 fun_declaration: type_specifier ID LBracket params RBracket compound_stmt {$$ = newFunDec($1, $2, $4, $6, yylineno);}
 ;
 
+compound_stmt: LBrace local_declarations statement_list RBrace	{$$ = newCompound($2, $3, yylineno);}
+;
+
 params: param_list				{$$ = newParams($1);}
 | VOID						{$$ = newParams(NULL);}
 ;
@@ -73,8 +76,7 @@ param: type_specifier ID			{$$ = newParam($1, $2, 0, yylineno);}
 | type_specifier ID LSB RSB			{$$ = newParam($1, $2, 1, yylineno);}
 ;
 
-compound_stmt: LBrace local_declarations statement_list RBrace	{$$ = newCompound($2, $3, yylineno);}
-;
+
 
 local_declarations: local_declarations var_declaration	{$$ = newLocalDecs($1, $2);}
 | 						{$$ = NULL}
