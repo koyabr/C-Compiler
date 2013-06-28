@@ -24,13 +24,11 @@ int TraceAnalyze = FALSE;
 int TraceCode = FALSE;
 
 int Error = FALSE;
-
+SymbolTable CompoundST;
+SymbolTable ParamST;
 
 void init()
 {
-     extern SymbolTable CompoundST;
-     extern SymbolTable ParamST;
-
      CompoundST = newSymbolTable(LOCAL);
      ParamST = newSymbolTabl(PARAM);
 }

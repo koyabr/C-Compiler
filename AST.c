@@ -6,8 +6,6 @@
 static int location = 0;
 static int stack[MAXSTACK];
 static int sp = 0;
-static SymbolTable* CompoundST = NULL;
-static SymbolTable* ParamST = NULL;
 TreeNode * ASTRoot; /*Root of syntax tree*/
 
 int popLocation()
