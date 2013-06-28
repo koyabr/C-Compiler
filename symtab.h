@@ -22,7 +22,7 @@ SymbolTable* popTable();
 void pushTable(SymbolTable* st);
 
 /* insert symbol entries */
-void insert_var(char * name, int offset, ExpType type);
+void insert_var(char * name, Scope s, int offset, ExpType type);
 void insert_fun(char* name, SymbolTable st, int num);
 
 /* look up for a symbol entry*/

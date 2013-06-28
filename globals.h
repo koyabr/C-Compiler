@@ -17,7 +17,7 @@
 
 #define ASSERT(x) for(;!(x);assert(x))
 
-
+#define MAXSTACK 100
 
 /* SIZE is the size of the hash table */
 #define SIZE 211

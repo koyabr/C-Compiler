@@ -17,9 +17,14 @@ SymbolTable* newSymbolTable(Scope scope)
         fprintf(stderr, "Failed to malloc for symbal table.\n");
      }
      st->scope = scope;
-     st->startOffset = 0;       /* TODO */
+     st->startOffset = 0;      
      st->next = NULL;
      return st;
+}
+
+SymbolTable* topTable()
+{
+     return tables;
 }
 
 SymbolTable* popTable()
