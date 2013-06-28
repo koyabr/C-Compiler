@@ -143,6 +143,9 @@ static void cGen( TreeNode * tree)
               p1 = tree->child[1];/*name*/
               p2 = tree->child[3];/*body*/
 
+              fun = lookup_fun(p1->attr.name);
+              fun->offset = emitSkip(0);
+
               
               /*prepare bp & sp*/
               emitRM("LDA",sp,-1,sp,"push prepare");
@@ -150,7 +153,7 @@ static void cGen( TreeNode * tree)
               emitRM("LDA",bp,0,sp,"let bp == sp");
 
               /*push param symtab, prepare for body*/
-              fun = lookup_fun(p1->attr.name);
+              
               pushTable(fun->symbolTable);
               /*generate body*/
               cGen(p2); 
@@ -241,9 +244,10 @@ static void cGen( TreeNode * tree)
 
           case VAR_AST:
              if(TraceCode) emitComment("-> variable");
-             p1 = tree->child[0];
-             symbol = st_lookup(p1->attr.name);
-             emitGetAddr(symbol);
+             
+             var = lookup_var(tree->attr.name);
+             emitGetAddr(var);
+
              if(getValue){
               if(symbol->type == TYPE_ARRAY)
                 emitRM("LDA",ax,0,bx,"get array variable value( == address)");
@@ -256,17 +260,20 @@ static void cGen( TreeNode * tree)
 
           case ARRAYVAR_AST:
              if(TraceCode) emitComment("-> array element");
-             p1 = tree->child[0];/*name*/
-             p2 = tree->child[1];/*index expression*/
-             symbol = lookup(p1->attr.name);
-             emitGetAddr(symbol);
+             p1 = tree->child[0];/*index expression*/
+
+             var = lookup(p1->attr.name);
+             emitGetAddr(var);
+
              tmp = getValue;
              getValue = 1;
-             cGen(p2);
+             cGen(p1);
              getValue = tmp;
+
              emitRO("SUB",bx,bx,ax,"get address of array element");
              if(getValue)
                 emitRM("LD",ax,0,bx,"get value of array element");
+              
              if(TraceCode) emitComment("<- array element");
              break;
 

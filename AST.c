@@ -212,7 +212,7 @@ TreeNode* newSelectStmt(TreeNode* expression, TreeNode* stmt, TreeNode* elseStmt
 }
 TreeNode* newIterStmt(TreeNode* expression,  TreeNode* stmt, int lineno)
 {
-     assert(expression != NULL);
+     
      TreeNode* root = newASTNode(ITERSTMT_AST, lineno);
      root->child[0] = expression;
      root->child[1] = stmt;
@@ -246,7 +246,7 @@ TreeNode* newExpression(TreeNode* simpExp)
 TreeNode* newVar(char* ID, int lineno)
 {
      TreeNode* root = newASTNode(VAR_AST, lineno);
-     VarSymbol vs = st_lookup(ID);
+     VarSymbol* vs = lookup_var(ID);
      if( vs == NULL)
           Error(root, "variable not defined");
      else
@@ -256,7 +256,7 @@ TreeNode* newVar(char* ID, int lineno)
 TreeNode* newArrayVar(char* ID, TreeNode* expression, int lineno)
 {
      TreeNode* root = newASTNode(ARRAYVAR_AST, lineno);
-     VarSymbol vs = st_lookup(ID);
+     VarSymbol* vs = lookup_var(ID);
      if( vs == NULL)
           Error(root, "variable not defined");
      else
@@ -339,6 +339,14 @@ TreeNode* newTermFactor(TreeNode* factor)
 {
      return factor;
 }
+TreeNode* newNumNode(int value, int lineno)
+{
+     TreeNode* root = newASTNode(NUM_AST, lineno);
+     root->attr.value = value;
+
+     return root;
+}
+
 TreeNode* newCall(char* ID, TreeNode* args, int lineno)
 {
      FunSymbol* fun;

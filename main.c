@@ -39,16 +39,14 @@ int main(int argc, char *argv[])
   
     char sourcefile[FILE_NAME_LEN]; /* source code file name */
 
-    if (argc != 2){ 
+    ASSERT(argc == 2){ 
       fprintf(stderr,"usage: %s <filename>\n",argv[0]);
-      exit(1);
     }
 
     strcpy(sourcefile,argv[1]) ;
     source = fopen(sourcefile,"r");
-    if (!source){ 
+    ASSERT(source != NULL){ 
       fprintf(stderr,"File %s not found\n",sourcefile);
-      exit(1);
     }
 
     listing = stdout; /* send listing to screen */
@@ -69,9 +67,8 @@ int main(int argc, char *argv[])
       strcpy(codefile,sourcefile);
       strcat(codefile,".tm");
       code = fopen(codefile,"w");
-      if (!code){ 
+      ASSERT(code != NULL){ 
         fprintf(stderr, "Unable to open %s\n",codefile);
-        exit(1);
       }
       codeGen();
       fclose(code);

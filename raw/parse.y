@@ -145,7 +145,7 @@ mulop: MULTI					{$$ = MULTI;}
 factor: LBracket expression RBracket 		{$$ = newTermFactor($2);}
 | var						{$$ = newTermFactor($1);}
 | call						{$$ = newTermFactor($1);}
-| NUMBER					{$$ = newTermFactor(newNumNode($1));}
+| NUMBER					{$$ = newTermFactor(newNumNode($1, yylineno));}
 ;
 
 call: ID LBracket args RBracket			{$$ = newCall($1, $3);}
