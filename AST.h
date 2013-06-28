@@ -52,5 +52,5 @@ TreeNode* newCall(char* ID, TreeNode* args, int lineno);
 TreeNode* newArgs(TreeNode* argList); // argList=NULL => args:
 TreeNode* newArgList(TreeNode* argList, TreeNode* expression); // argList==NULL
 TreeNode* newASTNode(ASTType asttype, int lineno);
-
+TreeNode* newNumNode(int num, int lineno);
 #endif

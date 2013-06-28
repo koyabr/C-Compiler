@@ -26,6 +26,7 @@
    in hash function  */
 #define SHIFT 4
 
+#define DEBUG
 
 extern FILE* source; /* source code text file */
 extern FILE* listing; /* listing output text file */
@@ -34,8 +35,6 @@ extern FILE* code; /* code text file for TM simulator */
 extern int yylineno;
 extern char* yytext;
 
-extern SymbolTable CompoundST;
-extern SymbolTable ParamST;
 
 /**************************************************/
 /***********   Syntax tree for parsing ************/
@@ -55,7 +54,7 @@ typedef enum {VARDEC_AST, ARRAYDEC_AST, FUNDEC_AST,
               EXPSTMT_AST, SELESTMT_AST, ITERSTMT_AST, RETSTMT_AST, ASSIGN_AST,
               EXP_AST, VAR_AST, ARRAYVAR_AST,
               FACTOR_AST,
-              CALLSTMT_AST} ASTType;
+              CALLSTMT_AST, NUM_AST} ASTType;
 
 typedef struct var_symbol VarSymbol;
 struct var_symbol {
@@ -101,10 +100,12 @@ struct ASTNode{
 };
 
 
-
+extern SymbolTable* CompoundST;
+extern SymbolTable* ParamST;
+extern SymbolTable* tables;
 extern TreeNode *ASTRoot;
 
-
+void ErrorMsg(TreeNode* t, char* message);
 
 
 /**************************************************/

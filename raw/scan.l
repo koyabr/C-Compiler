@@ -41,29 +41,25 @@ whitespace  [ \t]+
 "+" {return PLUS;}
 "*" {return MULTI;}
 "/" {return DIV;}
-"|" {return OR;}
-"&" {return AND;}
 
-">" {return B;}
-"<" {return S;}
-">=" {return BE;}
-"<=" {return SE;}
+">" {return GT;}
+"<" {return LT;}
+">=" {return GE;}
+"<=" {return LE;}
 "==" {return EQ;}
 "!=" {return NE;}
-"||" {return COR;}
-"&&" {return CAND;}
 
 {number} {
 	yylval.value = atoi(yytext); 
 	return NUMBER;
 	}
 
-identifier {
+{identifier} {
 	yylval.name = strdup(yytext);
 	return ID;
 	}
 
-whitespace {/* skip */}
+{whitespace} {/* skip */}
 
 . {printf("MISS MATCH: %c\n", yytext[0]);}
 %%

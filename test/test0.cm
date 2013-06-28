@@ -7,5 +7,6 @@ int main(int a)
         int aa;
         int bb;
         int cc;
-        a = b+c*a/b-c;
+        a = bb+cc*a/bb-cc;
+        return 1;
 }

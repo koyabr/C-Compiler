@@ -2,11 +2,9 @@
 #include "AST.h"
 #include "symtab.h"
 #include "string.h"
-
-static int location = 0;
+#include "parse.h"
 static int stack[MAXSTACK];
 static int sp = 0;
-TreeNode * ASTRoot; /*Root of syntax tree*/
 
 int popLocation()
 {
@@ -42,11 +40,11 @@ TreeNode* newVarDec(TreeNode* typeSpecifier, char* ID, int lineno)
      root->attr.name = strdup(ID);
      root->type = TYPE_INTEGER;
      pushTable(CompoundST);
-     VarSymbol vs = st_lookup(root->attr.name);
+     VarSymbol* vs = lookup_var(root->attr.name);
      if(vs != NULL)
-          Error(root, "variable has been declared before");
+          ErrorMsg(root, "variable has been declared before");
      else
-          st_insert(root->attr.name, GLOBAL, CompoundST->startOffset++, TYPE_INTEGER);
+          insert_var(root->attr.name, GLOBAL, CompoundST->startOffset++, TYPE_INTEGER);
      popTable();
      return root;
 }
@@ -59,13 +57,13 @@ TreeNode* newArrayDec(TreeNode* typeSpecifier, char* ID, int size, int lineno)
      root->type = TYPE_ARRAY;
      root->attr.value = size;
      pushTable(CompoundST);
-     VarSymbol vs = st_lookup(root->attr.name);
+     VarSymbol* vs = lookup_var(root->attr.name);
      if(vs != NULL)
-          Error(root, "array has been declared before");
+          ErrorMsg(root, "array has been declared before");
      else
      {
-          st_insert(root->attr.name, GLOBAL, CompoundST->startOffset, TYPE_ARRAY);
-          st->startOffset += size;
+          insert_var(root->attr.name, GLOBAL, CompoundST->startOffset, TYPE_ARRAY);
+          CompoundST->startOffset += size;
      }
      popTable(CompoundST);
      return root;
@@ -80,19 +78,25 @@ TreeNode* newTypeSpe(ExpType type, int lineno)
 TreeNode* newFunDec(TreeNode* typeSpecifier, char* ID, TreeNode* params, TreeNode* compound, int lineno)
 {
      TreeNode* root = newASTNode(FUNDEC_AST, lineno);
-     TreeNode* temp = NULL;
      root->child[0] = typeSpecifier;
      root->child[1] = params;
      root->child[2] = compound;
      root->attr.name = strdup(ID);
-     FunSymbol fs = st_lookup_fun(ID);
+     FunSymbol* fs = lookup_fun(ID);
+     /* print symbol table to test */
+     #ifdef DEBUG
+     printSymTab(ParamST);
+     #endif
      /* check if the function has been declared before */
      if(fs != NULL)
-          Error(root, "array has been declared before");
+          ErrorMsg(root, "array has been declared before");
      else
      {
           root->symbolTable = ParamST;
-          st_insert_fun(root->attr.name, ParamST, params->attr.value);
+          if(params == NULL)
+               insert_fun(root->attr.name, ParamST, 0);               
+          else
+               insert_fun(root->attr.name, ParamST, params->attr.value);
           ParamST = newSymbolTable(PARAM);
      }
      /* type check of return and declaration */
@@ -108,7 +112,6 @@ TreeNode* newParams(TreeNode* paramList)
      // params: param_list
      int num = 0;
      TreeNode* temp;
-     TreeNode* root = NULL;
      if(paramList != NULL)
      {
           for(temp=paramList;temp!=NULL;temp++)
@@ -149,10 +152,10 @@ TreeNode* newParam(TreeNode* typeSpecifier, char* ID, int type, int lineno)
           root->child[0] = typeSpecifier;
           root->attr.name = strdup(ID);
           pushTable(ParamST);
-          if(st_lookup(root->attr.name) != NULL)
-               Error(root, "parameter has been declared before");
+          if(lookup_var(root->attr.name) != NULL)
+               ErrorMsg(root, "parameter has been declared before");
           else
-               st_insert(root->attr.name, PARAM, ParamST->startOffset++ , TYPE_INTEGER)
+               insert_var(root->attr.name, PARAM, ParamST->startOffset++ , TYPE_INTEGER);
           popTable();
           root->type = TYPE_INTEGER;
      }
@@ -162,10 +165,10 @@ TreeNode* newParam(TreeNode* typeSpecifier, char* ID, int type, int lineno)
           root->child[0] = typeSpecifier;
           root->attr.name = strdup(ID);
           pushTable(ParamST);
-          if(st_lookup(root->attr.name) != NULL)
-               Error(root, "parameter has been declared before");
+          if(lookup_var(root->attr.name) != NULL)
+               ErrorMsg(root, "parameter has been declared before");
           else
-               st_insert(root->attr.name, PARAM, ParamST->startOffset++ , TYPE_ARRAY)
+               insert_var(root->attr.name, PARAM, ParamST->startOffset++ , TYPE_ARRAY);
           popTable();
           root->type = TYPE_ARRAY;
      }
@@ -175,21 +178,26 @@ TreeNode* newCompound(TreeNode* localDecs, TreeNode* stmtList, int lineno)
 {
      TreeNode* node = localDecs;
      TreeNode* root = newASTNode(COMPOUND_AST, lineno);
-     VarSymbol vs = NULL;
+     VarSymbol* vs = NULL;
      root->child[0] = localDecs;
      root->child[1] = stmtList;
-     root->type = stmtList->type;
+     if(stmtList != NULL)
+          root->type = stmtList->type;
+     else
+          root->type = -1;
      root->symbolTable = CompoundST;
 
+     /* change all local declaration of Compound Stmt to LOCAL from default GLOBAL */
      pushTable(CompoundST);
      for(node = localDecs; node!=NULL; node=node->sibling)
      {
-          vs = look_up(node->attr.name);
+          vs = lookup_var(node->attr.name);
           assert(vs != NULL);
           vs->scope = LOCAL;
      }
      popTable();
      CompoundST = newSymbolTable(LOCAL);
+     return root;
 }
 TreeNode* newLocalDecs(TreeNode* localDecs, TreeNode* varDec)
 {
@@ -258,7 +266,7 @@ TreeNode* newAssignExp(TreeNode* var, TreeNode* expression, int lineno)
      root->child[0] = var;
      root->child[1] = expression;
      if(!(var->type==TYPE_INTEGER && expression->type==TYPE_INTEGER))
-          Error(root, "type mismatch");
+          ErrorMsg(root, "type mismatch");
      return root;
 }
 TreeNode* newExpression(TreeNode* simpExp)
@@ -268,9 +276,9 @@ TreeNode* newExpression(TreeNode* simpExp)
 TreeNode* newVar(char* ID, int lineno)
 {
      TreeNode* root = newASTNode(VAR_AST, lineno);
-     VarSymbol vs = st_lookup(ID);
+     VarSymbol* vs = lookup_var(ID);
      if( vs == NULL)
-          Error(root, "variable not defined");
+          ErrorMsg(root, "variable not defined");
      else
           root->attr.name = vs->name;
      return root;
@@ -278,17 +286,17 @@ TreeNode* newVar(char* ID, int lineno)
 TreeNode* newArrayVar(char* ID, TreeNode* expression, int lineno)
 {
      TreeNode* root = newASTNode(ARRAYVAR_AST, lineno);
-     VarSymbol vs = st_lookup(ID);
+     VarSymbol* vs = lookup_var(ID);
      if( vs == NULL)
-          Error(root, "variable not defined");
+          ErrorMsg(root, "variable not defined");
      else
           root->attr.name = vs->name;
      if( vs->type != TYPE_ARRAY)
-          Error(root, "variable is not array");
+          ErrorMsg(root, "variable is not array");
      else
      {
           if(expression->type != TYPE_INTEGER)
-               Error(root, "type mismatch");
+               ErrorMsg(root, "type mismatch");
           else
                root->child[0] = expression;
      }
@@ -308,14 +316,14 @@ TreeNode* newSimpExp(TreeNode* addExp1, int relop, TreeNode* addExp2, int lineno
              root->attr.op == MULTI || root->attr.op == DIV)
           {
                if(!(addExp1->type == TYPE_INTEGER && addExp2->type == TYPE_INTEGER))
-                    Error(root, "type mismatch");
+                    ErrorMsg(root, "type mismatch");
                else
                     root->type = TYPE_INTEGER;
           }
           else
           {
                if(!(addExp1->type == TYPE_BOOLEAN && addExp2->type ==TYPE_BOOLEAN))
-                    Error(root, "type mismatch");
+                    ErrorMsg(root, "type mismatch");
                else
                     root->type = TYPE_BOOLEAN;
           }
@@ -339,7 +347,7 @@ TreeNode* newAddExp(TreeNode* addExp, int addop, TreeNode* term, int lineno)
      root->attr.op = addop;
      root->type = TYPE_INTEGER;
      if(!(addExp->type == TYPE_INTEGER && term->type == TYPE_INTEGER))
-          Error(root, "type mismatch");
+          ErrorMsg(root, "type mismatch");
      return root;
 }
 TreeNode* newAddOp(int opType)
@@ -354,7 +362,7 @@ TreeNode* newTerm(TreeNode* term, int mulop, TreeNode* factor, int lineno)
      root->attr.op = mulop;
      root->type = TYPE_INTEGER;
      if(!(term->type == TYPE_INTEGER && factor->type == TYPE_INTEGER))
-          Error(root, "type mismatch");
+          ErrorMsg(root, "type mismatch");
      return root;
 }
 TreeNode* newTermFactor(TreeNode* factor)
@@ -386,7 +394,7 @@ TreeNode* newCall(char* ID, TreeNode* args, int lineno)
      }
 
      /*Check finished*/
-     TreeNode* root = newASTNode(CALL_AST, lineno);
+     TreeNode* root = newASTNode(CALLSTMT_AST, lineno);
      root->child[0] = args;
      root->attr.name = strdup(ID);
 
@@ -415,7 +423,7 @@ TreeNode* newASTNode(ASTType type, int lineno)
           fprintf(stderr, "Failed to malloc for TreeNode @line%d.\n", lineno);
      }
 
-     for(i=0; i<MAXCHIDREN; ++i){
+     for(i=0; i<MAXCHILDREN; ++i){
           node->child[i] = NULL;
      }
      node->sibling = NULL;
@@ -425,6 +433,12 @@ TreeNode* newASTNode(ASTType type, int lineno)
      return node;
 }
 
+TreeNode* newNumNode(int num, int lineno)
+{
+     TreeNode* root = newASTNode(NUM_AST, lineno);
+     root->attr.value = num;
+     return root;
+}
 void printNodeKind(TreeNode* node)
 {
      if(node == NULL)
