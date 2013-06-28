@@ -173,17 +173,17 @@ TreeNode* newCompound(TreeNode* localDecs, TreeNode* stmtList, int lineno)
      root->child[0] = localDecs;
      root->child[1] = stmtList;
      /* assign type of Return to Compound */
-     if(stmtList != NULL)
+     if(stmtList != NULL && stmtList->type != TYPE_UNDEFINED) /* has return stmt */
           root->type = stmtList->type;
      else
           root->type = TYPE_VOID;
      root->symbolTable = CompoundST;
      /* DEBUG: print symbol table of this compount statement */
-     #ifdef DEBUG_SYM
+#ifdef DEBUG_SYM
      fprintf(listing, "symbo table of Compound\n");
      printSymTab(CompoundST);
-     #endif
-
+#endif
+     
      /* change all local declaration of Compound Stmt to LOCAL from default GLOBAL */
      pushTable(CompoundST);
      for(node = localDecs; node!=NULL; node=node->sibling)
@@ -213,7 +213,14 @@ TreeNode* newStmtList(TreeNode* stmtList, TreeNode* stmt)
      while(node->sibling != NULL)
           node = node->sibling;
      node->sibling = stmt;
-     stmtList->type = stmt->type;
+     if(stmt->type != TYPE_UNDEFINED)       /* return stmt */
+     {
+          if(stmtList->type == TYPE_UNDEFINED) /* there is no return stmt before */
+               stmtList->type = stmt->type; /* assign return stmt type to stmtList */
+          else
+               if(stmtList->type != stmt->type)
+                    ErrorMsg(stmt, "Return type mismatch", "");
+     }
      return stmtList;
 }
 // stmt includes 5 type
@@ -251,7 +258,7 @@ TreeNode* newRetStmt(TreeNode* expression, int lineno)
      TreeNode* root = newASTNode(RETSTMT_AST, lineno);
      root->child[0] = expression;
      if(expression != NULL)
-          root->type = expression->type;
+          root->type = TYPE_INTEGER;
      else
           root->type = TYPE_VOID;
      return root;
@@ -325,10 +332,10 @@ TreeNode* newSimpExp(TreeNode* addExp1, int relop, TreeNode* addExp2, int lineno
           }
           else
           {
-               if(!(addExp1->type == TYPE_BOOLEAN && addExp2->type ==TYPE_BOOLEAN))
+               if(!(addExp1->type == TYPE_INTEGER && addExp2->type ==TYPE_INTEGER))
                     ErrorMsg(root, "type mismatch", "");
                else
-                    root->type = TYPE_BOOLEAN;
+                    root->type = TYPE_INTEGER;
           }
              
      }
@@ -431,7 +438,7 @@ TreeNode* newASTNode(ASTType type, int lineno)
      }
      node->sibling = NULL;
      node->astType = type;
-     node->type = -1;
+     node->type = TYPE_UNDEFINED;
      node->lineno = lineno;
      return node;
 }

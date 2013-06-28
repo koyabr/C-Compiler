@@ -45,7 +45,7 @@ extern char* yytext;
 
 typedef enum{GLOBAL, LOCAL, PARAM} Scope;
 /* ExpType is used for type checking */
-typedef enum {TYPE_INTEGER, TYPE_VOID, TYPE_ARRAY, TYPE_BOOLEAN} ExpType;
+typedef enum {TYPE_INTEGER, TYPE_VOID, TYPE_ARRAY, TYPE_UNDEFINED} ExpType;
 
 typedef enum {VARDEC_AST, ARRAYDEC_AST, FUNDEC_AST,
               TYPE_AST,
