@@ -35,23 +35,22 @@
 %union{
      char* name; /* terminal token: for symbol's name */
      int value; /* terminal token: for number */
-     struct symbol sym; /* unterminal token: symbol */
      struct ASTNode* node; /* unterminal token: abstract syntax tree node */
  }
 
 %%
-program: declaration_list			{ASTRoot = newProgram($1);}
+program: declaration_list			{ASTRoot = $1;}
 ;
 
  declaration_list: declaration_list declaration  {$$ = newDecList($1, $2);}
-| declaration					{$$ = newDecList(NULL, $1);}
+| declaration					{$$ = $1;}
 ;
 
-declaration: var_declaration			{$$ = newDec($1, 0);}
-| fun_declaration				{$$ = newDec($1, 1);}
+declaration: var_declaration			{$$ = $1;}
+| fun_declaration				{$$ = $1;}
 ;
 
-var_declaration: type_specifier ID SEMI 	{$$ = newVarDec($1, $2);}
+var_declaration: type_specifier ID SEMI 	{$$ = newVarDec($1, $2, yylineno);}
 | type_specifier ID LSB NUMBER RSB SEMI		{$$ = newArrayDec($1, $2, $4);}
 ;
 
@@ -165,4 +164,5 @@ arg_list: arg_list COMMA expression		{$$ = newArgList($1, $3);}
 int yyerror(char *errmsg)
 {
      fprintf(stderr, "%d: %s at '%s' \n", yylineno, errmsg, yytext);
+     return 0;
 }

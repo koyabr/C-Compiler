@@ -1,108 +1,118 @@
+#include "globals.h"
 #include "AST.h"
+#include "symtab.h"
 
-void printNodeKind(struct ASTNode* node)
+static int location = 0;
+static SymbolTable* CompoundST = NULL;
+static SymbolTable* ParamST = NULL;
+TreeNode * ASTRoot; /*Root of syntax tree*/
+
+/* Add declaration as sibling*/
+TreeNode* newDecList(TreeNode* decList, TreeNode* declaration)
 {
-}
-void printAST(struct ASTNode* root, int indent)
-{
-     struct ASTNode* node = root;
-     int i;
-     while(node != NULL)
-     {
-          for (i = 0; i<indent; ++i)
-          {
-               printf(" ");
-          }
-          printNodeKind(node);
-          printAST(node->child[0], indent+4);
+
+     TreeNode* node = decList;
+
+     while(node->sibling != NULL)
           node = node->sibling;
-     }
-}
+     node->sibling = declaration;
 
 
-struct ASTNode* newProgram(struct ASTNode* decList)
-{
      return decList;
 }
-// decList==NULL => declaration
-struct ASTNode* newDecList(struct ASTNode* decList, struct ASTNode* declaration)
+
+
+TreeNode* newVarDec(TreeNode* typeSpecifier, char* ID, int lineno)
 {
-     struct ASTNode* root = NULL;
-     struct ASTNode* node = decList;
-     assert(declaration != NULL);
-     // declaration_list: declaration_list declaration
-     if(decList != NULL)
-     {
-          while(node->sibling != NULL)
-               node = node->sibling;
-          node->sibling = declaration;
-          root = decList;
-     }
-     else                       // declaration_list: declaration
-     {
-          root = declaration;
-     }
-     return root;
-}
-// type: 0=var, 1=fun
-struct ASTNode* newDec(struct ASTNode* declaration, int type)
-{
-     return declaration;
-}
-// var_declaration: type_specifier ID SEMI
-struct ASTNode* newVarDec(struct ASTNode* typeSpecifier, char* ID)
-{
-     struct ASTNode* root = newASTNode(VARDEC_AST);
+     TreeNode* root = newASTNode(VARDEC_AST, lineno);
      root->child[0] = typeSpecifier;
-     root->child[1] = newIDNode(ID);
+     root->attr.name = strdup(ID);
+     root->type = TYPE_INTEGER;
+     pushTable(CompoundST);
+     VarSymbol vs = st_lookup(root->attr.name);
+     if(vs != NULL)
+          Error(root, "variable has been declared before");
+     else
+          st_insert(root->attr.name, lineno, location++, TYPE_INTEGER);
+     popTable();
      return root;
 }
 // var_declaration: type_specifier ID LSB NUMBER RSB SEMI
-struct ASTNode* newArrayDec(struct ASTNode* typeSpecifier, char* ID, int size)
+TreeNode* newArrayDec(TreeNode* typeSpecifier, char* ID, int size, int lineno)
 {
-     struct ASTNode* root = newASTNode(ARRAYDEC_AST);
+     TreeNode* root = newASTNode(ARRAYDEC_AST, lineno);
      root->child[0] = typeSpecifier;
-     root->child[1] = newIDNode(ID);
-     root->child[2] = newNumNode(size);
+     root->attr.name = strdup(ID);
+     root->type = TYPE_ARRAY;
+     root->attr.value = size;
+     pushTable(CompoundST);
+     VarSymbol vs = st_lookup(root->attr.name);
+     if(vs != NULL)
+          Error(root, "array has been declared before");
+     else
+     {
+          st_insert(root->attr.name, lineno, location, TYPE_ARRAY);
+          location += size;
+     }
+     popTable(CompoundST);
      return root;
 }
-struct ASTNode* newTypeSpe(ExpType type)
+TreeNode* newTypeSpe(ExpType type, int lineno)
 {
-     struct ASTNode* root = newASTNode(TYPE_AST);
+     TreeNode* root = newASTNode(TYPE_AST, lineno);
      root->type = type;
      return root;
 }
 // fun_declaration: type_specifier ID LBracket params RBracket compound_stmt
-struct ASTNode* newFunDec(struct ASTNode* typeSpecifier, char* ID, struct ASTNode* params, struct ASTNode* compound)
+TreeNode* newFunDec(TreeNode* typeSpecifier, char* ID, TreeNode* params, TreeNode* compound, int lineno)
 {
-     struct ASTNode* root = newASTNode(FUNDEC_AST);
+     TreeNode* root = newASTNode(FUNDEC_AST, lineno);
+     TreeNode* temp = NULL;
      root->child[0] = typeSpecifier;
-     root->child[1] = newIDNode(ID);
-     root->child[2] = params;
-     root->child[3] = compound;
+     root->child[1] = params;
+     root->child[2] = compound;
+     root->attr.name = strdup(ID);
+     FunSymbol fs = st_lookup_fun(ID);
+     /* check if the function has been declared before */
+     if(fs != NULL)
+          Error(root, "array has been declared before");
+     else
+     {
+          root->symbolTable = ParamST;
+          st_insert_fun(root->attr.name, ParamST, params->attr.value);
+          ParamST = newSymbolTable(PARAM);
+     }
+     /* type check of return and declaration */
+     if(root->child[0]->type != root->child[2]->type)
+     {
+          fprintf(stderr, "%d: return type is conflict with function declaration\n", root->lineno);
+     }
      return root;
 }
 // paramList==NULL => params: VOID
-struct ASTNode* newParams(struct ASTNode* paramList)
+TreeNode* newParams(TreeNode* paramList)
 {
      // params: param_list
-     struct ASTNode* root = NULL;
+     int num = 0;
+     TreeNode* temp;
+     TreeNode* root = NULL;
      if(paramList != NULL)
      {
+          for(temp=paramList;temp!=NULL;temp++)
+               num++;
+          paramList->attr.value = num;
           return paramList;
      }
      else
      {
-          /* root = newASTNode(TYPE_AST); */
-          /* root->type = TYPE_VOID; */
           return NULL;
      }
 }
 // paramList==NULL => param_list:param
-struct ASTNode* newParamList(struct ASTNode* paramList, struct ASTNode* param)
+TreeNode* newParamList(TreeNode* paramList, TreeNode* param)
 {
      // param_list: param_list SEMI param
-     struct ASTNode* node = paramList;
+     TreeNode* node = paramList;
      if(paramList != NULL)
      {
           while(node->sibling != NULL)
@@ -116,34 +126,40 @@ struct ASTNode* newParamList(struct ASTNode* paramList, struct ASTNode* param)
      }
 }
 // type: 1=id is array 0=otherwise
-struct ASTNode* newParam(struct ASTNode* typeSpecifier, char* ID, int type)
+TreeNode* newParam(TreeNode* typeSpecifier, char* ID, int type, int lineno)
 {
      // param: type_specifier ID
-     struct ASTNode* root = NULL;
+     TreeNode* root = NULL;
      if(type == 0)
      {
-          root = newASTNode(PARAMID_AST);
+          root = newASTNode(PARAMID_AST, lineno);
           root->child[0] = typeSpecifier;
-          root->child[1] = newIDNode(ID);
+          root->attr.name = strdup(ID);
+          root->type = TYPE_INTEGER;
      }
      else // param: type_specifier ID LSB RSB
      {
-          root = newASTNode(PARAMARRAY_AST);
+          root = newASTNode(PARAMARRAY_AST, lineno);
           root->child[0] = typeSpecifier;
-          root->child[1] = newIDNode(ID);
+          root->attr.name = strdup(ID);
+          root->type = TYPE_ARRAY;
      }
      return root;
 }
-struct ASTNode* newCompound(struct ASTNode* localDecs, struct ASTNode* stmtList)
+TreeNode* newCompound(TreeNode* localDecs, TreeNode* stmtList, int lineno)
 {
-     struct ASTNode* node = localDecs;
-     struct ASTNode* root = newASTNode(COMPOUND_AST);
+     TreeNode* node = localDecs;
+     TreeNode* root = newASTNode(COMPOUND_AST, lineno);
      root->child[0] = localDecs;
      root->child[1] = stmtList;
+     root->type = stmtList->type;
+     CompoundST = newSymbolTable(LOCAL);
+     root->symbolTable = CompoundST;
+     
 }
-struct ASTNode* newLocalDecs(struct ASTNode* localDecs, struct ASTNode* varDec)
+TreeNode* newLocalDecs(TreeNode* localDecs, TreeNode* varDec)
 {
-     struct ASTNode* node = localDecs;
+     TreeNode* node = localDecs;
      if(localDecs == NULL)
           return varDec;
      while(node->sibling != NULL)
@@ -151,9 +167,9 @@ struct ASTNode* newLocalDecs(struct ASTNode* localDecs, struct ASTNode* varDec)
      node->sibling = varDec;
      return localDecs;
 }
-struct ASTNode* newStmtList(struct ASTNode* stmtList, struct ASTNode* stmt)
+TreeNode* newStmtList(TreeNode* stmtList, TreeNode* stmt)
 {
-     struct ASTNode* node = stmtList;
+     TreeNode* node = stmtList;
      if(stmtList == NULL)
           return stmt;
      while(node->sibling != NULL)
@@ -162,75 +178,114 @@ struct ASTNode* newStmtList(struct ASTNode* stmtList, struct ASTNode* stmt)
      return stmtList;
 }
 // stmt includes 5 type
-struct ASTNode* newStmt(struct ASTNode* stmt)
+TreeNode* newStmt(TreeNode* stmt)
 {
      return stmt;
 }
 // expression_stmt: SEMI
-struct ASTNode* newExpStmt(struct ASTNode* expression)
+TreeNode* newExpStmt(TreeNode* expression, int lineno)
 {
-     struct ASTNode* root = newASTNode(EXPSTMT_AST);
+     TreeNode* root = newASTNode(EXPSTMT_AST, lineno);
      root->child[0] =expression;
+     root->type = expression->type;
      return root;
 }    
-struct ASTNode* newSelectStmt(struct ASTNode* expression, struct ASTNode* stmt, struct ASTNode* elseStmt)
+TreeNode* newSelectStmt(TreeNode* expression, TreeNode* stmt, TreeNode* elseStmt, int lineno)
 {
-     struct ASTNode* root = newASTNode(SELESTMT_AST);
+     TreeNode* root = newASTNode(SELESTMT_AST, lineno);
      root->child[0] = expression;
      root->child[1] = stmt;
      root->child[2] = elseStmt;
      return root;
 }
-struct ASTNode* newIterStmt(struct ASTNode* expression,  struct ASTNode* stmt)
+TreeNode* newIterStmt(TreeNode* expression,  TreeNode* stmt, int lineno)
 {
      assert(expression != NULL);
-     struct ASTNode* root = newASTNode(ITERSTMT_AST);
+     TreeNode* root = newASTNode(ITERSTMT_AST, lineno);
      root->child[0] = expression;
      root->child[1] = stmt;
      return root;
 }
 // expression=NULL => return_stmt: RETURN SEMI;
-struct ASTNode* newRetStmt(struct ASTNode* expression)
+TreeNode* newRetStmt(TreeNode* expression, int lineno)
 {
-     struct ASTNode* root = newASTNode(RETSTMT_AST);
+     TreeNode* root = newASTNode(RETSTMT_AST, lineno);
      root->child[0] = expression;
+     if(expression != NULL)
+          root->type = expression->type;
+     else
+          root->type = TYPE_VOID;
      return root;
 }
 // assign statement
-struct ASTNode* newAssignExp(struct ASTNode* var, struct ASTNode* expression)
+TreeNode* newAssignExp(TreeNode* var, TreeNode* expression, int lineno)
 {
-     struct ASTNode* root = newASTNode(ASSIGN_AST);
+     TreeNode* root = newASTNode(ASSIGN_AST, lineno);
      root->child[0] = var;
      root->child[1] = expression;
+     if(!(var->type==TYPE_INTEGER && expression->type==TYPE_INTEGER))
+          Error(root, "type mismatch");
      return root;
 }
-struct ASTNode* newExpression(struct ASTNode* simpExp)
+TreeNode* newExpression(TreeNode* simpExp)
 {
      return simpExp;
 }
-struct ASTNode* newVar(char* ID)
+TreeNode* newVar(char* ID, int lineno)
 {
-     struct ASTNode* root = newASTNode(VAR_AST);
-     root->child[0] = newIDNode(ID);
+     TreeNode* root = newASTNode(VAR_AST, lineno);
+     VarSymbol vs = st_lookup(ID);
+     if( vs == NULL)
+          Error(root, "variable not defined");
+     else
+          root->attr.name = vs->name;
      return root;
 }
-struct ASTNode* newArrayVar(char* ID, struct ASTNode* expression)
+TreeNode* newArrayVar(char* ID, TreeNode* expression, int lineno)
 {
-     struct ASTNode* root = newASTNode(ARRAYVAR_AST);
-     root->child[0] = newIDNode(ID);
-     root->child[1] = expression;
+     TreeNode* root = newASTNode(ARRAYVAR_AST, lineno);
+     VarSymbol vs = st_lookup(ID);
+     if( vs == NULL)
+          Error(root, "variable not defined");
+     else
+          root->attr.name = vs->name;
+     if( vs->type != TYPE_ARRAY)
+          Error(root, "variable is not array");
+     else
+     {
+          if(expression->type != TYPE_INTEGER)
+               Error(root, "type mismatch");
+          else
+               root->child[0] = expression;
+     }
      return root;
 }
-struct ASTNode* newSimpExp(struct ASTNode* addExp1, int relop, struct ASTNode* addExp2)
+TreeNode* newSimpExp(TreeNode* addExp1, int relop, TreeNode* addExp2, int lineno)
 {
-     struct ASTNode* root = NULL;
+     TreeNode* root = NULL;
      /* simple_expression: additive_expression relop additive_expression */
      if(relop != -1)            
      {
-          root = newASTNode(EXP_AST);
+          root = newASTNode(EXP_AST, lineno);
           root->child[0] = addExp1;
           root->child[1] = addExp2;
           root->attr.op = relop;
+          if(root->attr.op == PLUS || root->attr.op == MINUS ||
+             root->attr.op == MULTI || root->attr.op == DIV)
+          {
+               if(!(addExp1->type == TYPE_INTEGER && addExp2->type == TYPE_INTEGER))
+                    Error(root, "type mismatch");
+               else
+                    root->type = TYPE_INTEGER;
+          }
+          else
+          {
+               if(!(addExp1->type == TYPE_BOOLEAN && addExp2->type ==TYPE_BOOLEAN))
+                    Error(root, "type mismatch");
+               else
+                    root->type = TYPE_BOOLEAN;
+          }
+             
      }
      else                       /* simple_expression: additive_expression  */
      {
@@ -238,80 +293,105 @@ struct ASTNode* newSimpExp(struct ASTNode* addExp1, int relop, struct ASTNode* a
      }
      return root;
 }
-struct ASTNode* newRelop(int opType)
+TreeNode* newRelop(int opType)
 {
      return NULL;
 }
-struct ASTNode* newAddExp(struct ASTNode* addExp, int addop, struct ASTNode* term)
+TreeNode* newAddExp(TreeNode* addExp, int addop, TreeNode* term, int lineno)
 {
-     struct ASTNode* root = newASTNode(EXP_AST);
+     TreeNode* root = newASTNode(EXP_AST, lineno);
      root->child[0] = addExp;
      root->child[1] = term;
      root->attr.op = addop;
+     root->type = TYPE_INTEGER;
+     if(!(addExp->type == TYPE_INTEGER && term->type == TYPE_INTEGER))
+          Error(root, "type mismatch");
      return root;
 }
-struct ASTNode* newAddOp(int opType)
+TreeNode* newAddOp(int opType)
 {
      return NULL;
 }
-struct ASTNode* newTerm(struct ASTNode* term, int mulop, struct ASTNode* factor)
+TreeNode* newTerm(TreeNode* term, int mulop, TreeNode* factor, int lineno)
 {
-     struct ASTNode* root = newASTNode(EXP_AST);
+     TreeNode* root = newASTNode(EXP_AST, lineno);
      root->child[0] = term;
      root->child[1] = factor;
      root->attr.op = mulop;
+     root->type = TYPE_INTEGER;
+     if(!(term->type == TYPE_INTEGER && factor->type == TYPE_INTEGER))
+          Error(root, "type mismatch");
      return root;
 }
-struct ASTNode* newTermFactor(struct ASTNode* factor)
+TreeNode* newTermFactor(TreeNode* factor)
 {
      return factor;
 }
-struct ASTNode* newCall(char* ID, struct ASTNode* args)
+TreeNode* newCall(char* ID, TreeNode* args, int lineno)
 {
-     struct ASTNode* root = newASTNode(CALLSTMT_AST);
-     root->child[0] = newIDNode(ID);
-     root->child[1] = args;
+     FunSymbol* fun;
+     VarSymbol* var;
+     TreeNode* tmp = args;
+     /* Check parameters */
+     fun = lookup_fun(ID);
+     ASSERT(fun != NULL){
+          fprintf(stderr, "call before declaration @line%d\n", lineno);
+     }
+     var = fun->paramList;
+     /*compare the parameters with args one-by-one*/
+     while(var && tmp){
+          ASSERT(var->type == tmp->type){
+               fprintf(stderr, "call function with type-mismatch @line%d\n",lineno);
+          }
+          var = var->next;
+          tmp = tmp->sibling;
+     }
+
+     ASSERT(!var && !tmp){
+          fprintf(stderr, "call function with number-mismatch @line%d\n", lineno);
+     }
+
+     /*Check finished*/
+     TreeNode* root = newASTNode(CALL_AST, lineno);
+     root->child[0] = args;
+     root->attr.name = strdup(ID);
+
      return root;
 }
-struct ASTNode* newArgs(struct ASTNode* argList)
+TreeNode* newArgs(TreeNode* argList)
 {
      return argList;
 }
-struct ASTNode* newArgList(struct ASTNode* argList, struct ASTNode* expression)
+
+/* Add the exp as sibling*/
+TreeNode* newArgList(TreeNode* argList, TreeNode* expression)
 {
-     struct ASTNode* node = argList;
+     TreeNode* node = argList;
      while(node->sibling != NULL)
           node = node->sibling;
      node->sibling = expression;
      return argList;
 }
-struct ASTNode* newASTNode(ASTType type)
+TreeNode* newASTNode(ASTType type, int lineno)
 {
-     struct ASTNode* node = (struct ASTNode*)malloc(sizeof(struct ASTNode));
-     node->child[0] = NULL;
-     node->child[1] = NULL;
-     node->child[2] = NULL;
-     node->child[3] = NULL;
+     int i;
+
+     TreeNode* node = (TreeNode*)malloc(sizeof(TreeNode));
+     ASSERT(node != NULL){
+          fprintf(stderr, "Failed to malloc for TreeNode @line%d.\n", lineno);
+     }
+
+     for(i=0; i<MAXCHIDREN; ++i){
+          node->child[i] = NULL;
+     }
      node->sibling = NULL;
      node->astType = type;
      node->type = -1;
+     node->lineno = lineno;
      return node;
 }
-struct ASTNode* newIDNode(char* ID)
-{
-     struct ASTNode* root = newASTNode(ID_AST);
-     root->attr.name = strdup(ID);
-     root->type = -1;
-     return root;
-}
-struct ASTNode* newNumNode(int num)
-{
-     struct ASTNode* root = newNumNode(NUM_AST);
-     root->attr.value = num;
-     return root;
-}
 
-void printNodeKind(struct ASTNode* node)
+void printNodeKind(TreeNode* node)
 {
      if(node == NULL)
            return;
@@ -368,26 +448,14 @@ void printNodeKind(struct ASTNode* node)
      case CALLSTMT_AST:
           printf("Call stement \n");
           break;
-     case ARGS_AST:
-          printf("Args\n");
-          break;
-     case ARGLIST_AST:
-          printf("Arg List \n");
-          break;
-     case NUM_AST:
-          printf("Number AST: %d\n", node->attr.value);
-          break;
-     case ID_AST:
-          printf("ID AST: %s\n", node->attr.name);
-          break;
      default:
           printf("No such AST type\n");
           break;
      }
 }
-void printAST(struct ASTNode* root, int indent)
+void printAST(TreeNode* root, int indent)
 {
-     struct ASTNode* node = root;
+     TreeNode* node = root;
      int i;
      while(node != NULL)
      {
@@ -403,5 +471,3 @@ void printAST(struct ASTNode* root, int indent)
           node = node->sibling;
      }
 }
-=======
->>>>>>> 9c91ddf6d4195db04509bdc2900b287d16acad84

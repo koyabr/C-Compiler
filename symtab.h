@@ -7,38 +7,6 @@
 
 #include "globals.h"
 
-typedef enum {GLOBAL_VAR, LOCAL_VAR, PARAM_VAR} VarType;
-
-typedef struct symbol Symbol;
-struct symbol {
-	char *name;
-	int offset;
-	ExpType expType;/*int void array*/
-	VarType varType;/*global, local, param*/
-	struct symbol *next;
-
-};
-
-typedef struct symtab SymTab;
-struct symtab {
-	int size;
-	VarType varType;/*global, local, param*/
-	Symbol head;
-	struct symtab *next;
-};
-
-typedef struct symbol_func SymbolFunc;
-struct symbol_func {
-	char *name;
-	int offset;
-	ExpType type;
-	struct symbol_func *next;
-
-	int param_size;
-	int var_size;
-
-	SymTab symtab;
-};
 
  /* constructs the symbol table */
 void buildSymtab(TreeNode *tree);
@@ -46,24 +14,23 @@ void buildSymtab(TreeNode *tree);
 /* performs type checking */
 void typeCheck(TreeNode *tree);
 
+/* new symbol table of certain scope */
+SymbolTable* newSymbolTable(Scope s);
 
- /* Procedure st_insert inserts line numbers and
- * memory locations into the symbol table
- * loc = memory location is inserted only the
- * first time, otherwise ignored
- */
-void st_insert( char * name, int lineno, int loc );
+SymbolTable* popTable();
 
-/* Function st_lookup returns the memory 
- * location of a variable or -1 if not found
- */
-int st_lookup ( char * name );
+void pushTable(SymbolTable* st);
 
-/* Procedure printSymTab prints a formatted 
- * listing of the symbol table contents 
- * to the listing file
- */
-void printSymTab(FILE * listing);
+/* insert symbol entries */
+void insert_var(char * name, int offset, ExpType type);
+void insert_fun(char* name, SymbolTable st, int num);
+
+/* look up for a symbol entry*/
+VarSymbol* lookup_var(char * name);
+FunSymbol* lookup_fun(char * name);
+
+/* prints a formatted listing of the symbol table contents to the listing file */
+void printSymTab();
 
 
 

@@ -10,7 +10,7 @@ LFLAGS =
 YACC = bison
 YFLAGS = -d
 
-OBJS = main.o utils.o scan.o parse.o symtab.o codegen.o
+OBJS = main.o  parse.o symtab.o codegen.o
 
 
 all: main tm
@@ -21,7 +21,8 @@ tm: tm.c
 	$(CC) $(CFLAGS) tm.c -o tm
 
 # For different objs
-main.o: main.c globals.h utils.h scan.h parse.h symtab.h codegen.h
+
+main.o: main.c globals.h utils.h parse.h symtab.h codegen.h
 	$(CC) $(CFLAGS) -c main.c
 
 utils.o: utils.c utils.h
@@ -34,11 +35,14 @@ parse.o: parse.c parse.h
 	$(CC) $(CFLAGS) -c parse.c
 
 ## For Lex and Yacc
-scan.c: scan.l globals.h parse.h
+scan.c: raw/scan.l globals.h parse.h
 	$(LEX) $(LFLAGS) raw/scan.l -o scan.c
 
-parse.c: parse.y globals.h AST.h
+
+parse.c: raw/parse.y globals.h AST.h
 	$(YACC) $(YFLAGS) raw/parse.y -o parse.c
+
+
 ##
 
 

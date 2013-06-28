@@ -15,6 +15,18 @@
 #define TRUE 1
 #endif
 
+#define ASSERT(x) for(;!(x);assert(x))
+
+
+
+/* SIZE is the size of the hash table */
+#define SIZE 211
+
+/* SHIFT is the power of two used as multiplier
+   in hash function  */
+#define SHIFT 4
+
+
 extern FILE* source; /* source code text file */
 extern FILE* listing; /* listing output text file */
 extern FILE* code; /* code text file for TM simulator */
@@ -30,6 +42,10 @@ extern char* yytext;
 #define MAXCHILDREN 4
 
 
+typedef enum{GLOBAL, LOCAL, PARAM} Scope;
+/* ExpType is used for type checking */
+typedef enum {TYPE_INTEGER, TYPE_VOID, TYPE_ARRAY, TYPE_BOOLEAN} ExpType;
+
 typedef enum {VARDEC_AST, ARRAYDEC_AST, FUNDEC_AST,
               TYPE_AST,
               PARAMID_AST, PARAMARRAY_AST,
@@ -37,8 +53,34 @@ typedef enum {VARDEC_AST, ARRAYDEC_AST, FUNDEC_AST,
               EXPSTMT_AST, SELESTMT_AST, ITERSTMT_AST, RETSTMT_AST, ASSIGN_AST,
               EXP_AST, VAR_AST, ARRAYVAR_AST,
               FACTOR_AST,
-              CALLSTMT_AST, ARGS_AST, ARGLIST_AST, NUM_AST, ID_AST} 
-  ASTType;
+              CALLSTMT_AST} ASTType;
+
+typedef struct var_symbol VarSymbol;
+struct var_symbol {
+     char* name;
+     Scope scope;
+     ExpType type;
+     int offset;
+     struct var_symbol* next;
+};
+
+typedef struct symbol_table SymbolTable;
+struct symbol_table {
+     int startOffset;
+     Scope scope;
+     VarSymbol* hashTable[SIZE];
+     struct symbol_table* next;
+};
+
+typedef struct fun_symbol FunSymbol;
+struct fun_symbol {
+     char* name;
+     int offset;
+     int paramNum;
+     VarSymbol* paramList;
+     SymbolTable* symbolTable;
+     struct fun_symbol* next;
+};
 
 typedef struct ASTNode TreeNode;
 struct ASTNode{
@@ -46,23 +88,17 @@ struct ASTNode{
      struct ASTNode* child[MAXCHILDREN];
      struct ASTNode* sibling;
      ASTType astType;
-     union{
-          TokenType op;
+     ExpType type; /* for type checking of exps */
+     struct{
+          int op;
           int value;
           char* name;
      } attr;
-     ExpType type; /* for type checking of exps */
+     SymbolTable* symbolTable;
+
 };
 
-/* For symbol table */
-struct symbol{
-     char* name;               /* variable's name */
-     ExpType type;        /* variable's type */
-     int int_value;            /* variable's value if type==INTEGER */
-     int num;                  /* length if type==array */
-     ExpType array_type; /* type of array variable if type ==array */     
-     int mem_location;        /* variable's location in TM memory  */
-};
+
 
 extern TreeNode *ASTRoot;
 
@@ -102,6 +138,7 @@ extern int TraceAnalyze;
 extern int TraceCode;
 
 /* Error = TRUE prevents further passes if an error occurs */
-extern int Error; 
+
+extern int Error;
 
 #endif

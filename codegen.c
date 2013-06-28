@@ -1,5 +1,6 @@
 /*Codegen*/
 
+#include "globals.h"
 #include "symtab.h"
 #include "codegen.h"
 
@@ -65,38 +66,43 @@ void emitRM( char * op, int r, int d, int s, char *c)
 
 
 
-/* emit one instruction to get the address of a symbol */
-void emitGetAddr(Symbol *symbol)
+/* emit one instruction to get the address of a var
+ * store the address in bx,
+ * we can access the var by bx[0]
+ */
+void emitGetAddr(VarSymbol *var)
 {
 
-  switch(symbol->varType){
-    case GLOABL_VAR:
-        emitRM("LDA",bx,-(symbol->offset),gp,"get global address");
+  switch(var->scope){
+    case GLOABL:
+        emitRM("LDA",bx,-1-(var->offset),gp,"get global address");
         break;
-    case LOCAL_VAR:
-        emitRM("LDA",bx,-1-(symbol->offset),bp,"get local address");
+    case LOCAL:
+        emitRM("LDA",bx,-1-(var->offset),bp,"get local address");
         break;
-    case PARAM_VAR:
-        if(symbol->type == TYPE_ARRAY){
-          emitRM("LD",bx,2+(symbol->offset),bp,"get param array address");
+    case PARAM:
+        if(var->type == TYPE_ARRAY){
+          emitRM("LD",bx,2+(var->offset),bp,"get param array address");
         }
         else{
-          emitRM("LDA",bx,2+(symbol->offset),bp,"get param variable address");
+          emitRM("LDA",bx,2+(var->offset),bp,"get param variable address");
         }
         break;
   }
 }
 
 
-/* emits 5 instructions to call a function*/
-void emitCall(SymbolFunc *symbol_func)
+/* emits 5 instructions to call a function,
+ * before this we have pushed all parameters
+ */
+void emitCall(FunSymbol *fun)
 {
 
   emitRM("LDA",ax,3,pc,"store returned PC");
   emitRM("LDA",sp,-1,sp,"push prepare");
   emitRM("ST",ax,0,sp,"push returned PC");
-  emitRM("LDC",pc,symbol_func->offset,0,"jump to function");
-  emitRM("LDA",sp,symbol_func->param_size,sp,"release parameters");
+  emitRM("LDC",pc,fun->offset,0,"jump to function");
+  emitRM("LDA",sp,fun->paramNum,sp,"release parameters");
 }
 
 
@@ -115,8 +121,8 @@ static void cGen( TreeNode * tree)
   TreeNode * p1, * p2, * p3;
   int savedLoc1,savedLoc2,currentLoc;
 
-  Symbol *symbol;
-  SymbolFunc *symbol_func;
+  VarSymbol *var;
+  FunSymbol *fun;
 
     while(tree){
 
@@ -143,14 +149,12 @@ static void cGen( TreeNode * tree)
               emitRM("ST",bp,0,sp,"push old bp");
               emitRM("LDA",bp,0,sp,"let bp == sp");
 
-              /*push param symtab*/
-              symbol_func = lookup(p1->attr.name);
-              push_symtab(symbol_func->symtab);
-
+              /*push param symtab, prepare for body*/
+              fun = lookup_fun(p1->attr.name);
+              pushTable(fun->symbolTable);
               /*generate body*/
               cGen(p2); 
-
-              pop_symtab();
+              popTable();
 
               if (TraceCode) emitComment("<- function");
               
@@ -159,10 +163,10 @@ static void cGen( TreeNode * tree)
           case COMPOUND_AST:
              
               if (TraceCode) emitComment("-> compound");
-              p1 = tree->child[0];/*body*/
-              push_symtab(tree->symtab);
+              p1 = tree->child[1];/*statements*/
+              pushTable(tree->symbolTable);
               cGen(p1);
-              pop_symtab();
+              popTable();
               if (TraceCode) emitComment("<- compound");
               break;
 
@@ -362,21 +366,19 @@ static void cGen( TreeNode * tree)
 
           case CALL_AST:
              if (TraceCode) emitComment("-> call") ;
-             p1 = tree->child[0];/*name*/
-             p2 = tree->child[1];/*arguments*/
+             p1 = tree->child[0];/*arguments*/
 
-             symbol_func = lookup(p1->attr.name);
-             symbol = symbol_fun->symtab->head;
-
-             while(symbol && p2){
-                cGen(p2);
+            /* first - push parameters */
+             while(p1 != NULL){
+                cGen(p1);
                 emitRM("LDA",sp,-1,sp,"push prepare");
                 emitRM("ST",ax,0,sp,"push parameters");
 
-                symbol = symbol->next;
-                p2 = p2->sibling;
+                p1 = p1->sibling;
              }
 
+             /*second - call function*/
+             fun = lookup_fun(tree->attr.name);
              emitCall(symbol_func);
              
 
@@ -395,7 +397,7 @@ static void cGen( TreeNode * tree)
 
 
 /* the primary function of the code generator */
-void codeGen(TreeNode * syntaxTree)
+void codeGen()
 {  
    int loc;
    SymbolFunc symbol_func;
@@ -430,7 +432,7 @@ void codeGen(TreeNode * syntaxTree)
 
 
    /* generate code for source */
-   cGen(syntaxTree);
+   cGen(ASTRoot);
 
    /* Fill up jump-to-main code */
    emitBackup(loc);

@@ -5,7 +5,6 @@ Compiler Design Course Project
 
 #include "globals.h"
 #include "utils.h"
-#include "scan.h"
 #include "parse.h"
 #include "symtab.h"
 #include "codegen.h"
@@ -15,7 +14,7 @@ Compiler Design Course Project
 FILE* source; /* source code text file */
 FILE* listing; /* listing output text file */
 FILE* code; /* code text file for TM simulator */
-TreeNode * ASTRoot; /*Root of syntax tree*/
+
 
 /*debug flags*/
 int EchoSource = FALSE;
@@ -27,7 +26,14 @@ int TraceCode = FALSE;
 int Error = FALSE;
 
 
+void init()
+{
+     extern SymbolTable CompoundST;
+     extern SymbolTable ParamST;
 
+     CompoundST = newSymbolTable(LOCAL);
+     ParamST = newSymbolTabl(PARAM);
+}
 int main(int argc, char *argv[])
 {
   
@@ -50,13 +56,12 @@ int main(int argc, char *argv[])
 
     yyrestart(source);
     yyparse();
+    fprintf(listing,"\nParsing Finished...\n");
 
     if (! Error){ 
-      fprintf(listing,"\nBuilding Symbol Table...\n");
-      buildSymtab(ASTRoot);
-      fprintf(listing,"\nChecking Types...\n");
-      typeCheck(ASTRoot);
-      fprintf(listing,"\nType Checking Finished\n");
+      
+      // ??????
+      fprintf(listing,"\nSemantic Analysis Finished...\n");
     }
 
     if (! Error){ 
@@ -68,8 +73,9 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Unable to open %s\n",codefile);
         exit(1);
       }
-      codeGen(ASTRoot);
+      codeGen();
       fclose(code);
+      fprintf(listing,"\nCode Generation Finished...\n");
     }
 
     fclose(source);
