@@ -296,9 +296,7 @@ void cGen( TreeNode * tree)
              cGen(p2);
              emitRM("LDA",pc,savedLoc1,zero,"jump to test");
              currentLoc = emitSkip(0);
-             printf("before: emitLoc = %d", emitLoc);
              emitBackup(savedLoc2);
-             printf("after: emitLoc = %d", emitLoc);
              emitRM("JEQ",ax,currentLoc,zero,"jump to end");
              emitRestore();
              if (TraceCode)  emitComment("<- while") ;
@@ -483,7 +481,6 @@ void cGen( TreeNode * tree)
             /* first - push parameters */
              isRecursive = 0;
              while( (p1 = popParam()) != NULL){
-                printf("process p1 node of type: %d\n",p1->astType);
                 cGen(p1);
                 emitRM("LDA",sp,-1,sp,"push prepare");
                 emitRM("ST",ax,0,sp,"push parameters");
@@ -527,14 +524,12 @@ void codeGen()
    emitInput();
    emitOutput();
 
-   printf("before cgen\n");
+   
    cGen(ASTRoot);
 
    /* Fill up jump-to-main code */
    emitBackup(loc);
-   printf("before find main\n");
    FunSymbol* fun = lookup_fun("main");
-   printf("after find main\n");
    emitCall(fun);
    emitRO("HALT",0,0,0,"END OF PROGRAM");
 
