@@ -27,6 +27,8 @@ return k;
 void sort(int a[], int low, int high) {
 int i;
 int k;
+
+i = low;
 while(i < high - 1) {
 int t;
 k = minloc(a, i, high);
@@ -35,6 +37,7 @@ a[k] = a[i];
 a[i] = t;
 i = i + 1;
 }
+
 }
 
 void main(void) {
@@ -53,4 +56,5 @@ while(i < 10) {
 output(x[i]);
 i = i + 1;
 }
+
 }

@@ -15,8 +15,8 @@ TreeNode* newDec(TreeNode* declaration, int type);             // type: 0=var, 1
 TreeNode* newVarDec(TreeNode* typeSpecifier, char* ID, int lineno);
 TreeNode* newArrayDec(TreeNode* typeSpecifier, char* ID, int size, int lineno);
 TreeNode* newTypeSpe(ExpType type, int lineno);
-TreeNode* newFunDec(TreeNode* typeSpecifier, char* ID, TreeNode* params, TreeNode* compound, int lineno);
-TreeNode* newParams(TreeNode* paramList);
+TreeNode* newFunDec(TreeNode* funHead, TreeNode* funBody, int lineno);
+TreeNode* newFunHead(TreeNode* typeSpecifier, char* ID, TreeNode* params, int lineno);
 TreeNode* newParamList(TreeNode* paramList, TreeNode* param); // paramList==NULL => param_list:param
 TreeNode* newParam(TreeNode* typeSpecifier, char* ID, int type, int lineno); // type: 1=id is array 0=otherwise
 TreeNode* newCompound(TreeNode* localDecs, TreeNode* stmtList, int lineno);

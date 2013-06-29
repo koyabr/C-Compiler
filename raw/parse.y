@@ -24,13 +24,16 @@ extern char* yytext;
 
 
 
+
 %token <value>NUMBER
 %token <name>ID
 
-
-%type <node> program declaration_list declaration var_declaration type_specifier fun_declaration
-%type <node> params param_list param compound_stmt local_declarations statement_list statement
-%type <node> expression_stmt selection_stmt iteration_stmt return_stmt expression var
+%type <node> program declaration_list declaration 
+%type <node> var_declaration fun_declaration type_specifier 
+%type <node> fun_head params param_list param compound_stmt 
+%type <node> local_declarations statement_list statement
+%type <node> expression_stmt selection_stmt iteration_stmt return_stmt 
+%type <node> expression var
 %type <node> simple_expression additive_expression term factor call args arg_list
 %type <value> relop addop mulop
 
@@ -38,7 +41,8 @@ extern char* yytext;
      char* name; /* terminal token: for symbol's name */
      int value; /* terminal token: for number */
      struct ASTNode* node; /* unterminal token: abstract syntax tree node */
- }
+}
+
 
 %%
 program: declaration_list			{ASTRoot = $1;}
@@ -52,25 +56,28 @@ declaration: var_declaration			{$$ = $1;}
 | fun_declaration				{$$ = $1;}
 ;
 
-var_declaration: type_specifier ID SEMI 	{$$ = newVarDec($1, $2, yylineno);}
-| type_specifier ID LSB NUMBER RSB SEMI		{$$ = newArrayDec($1, $2, $4, yylineno);}
-;
-
 type_specifier: INT				{$$ = newTypeSpe(TYPE_INTEGER, yylineno);}
 | VOID						{$$ = newTypeSpe(TYPE_VOID, yylineno);}
 ;
 
-fun_declaration: type_specifier ID LBracket params RBracket compound_stmt {$$ = newFunDec($1, $2, $4, $6, yylineno);}
+var_declaration: type_specifier ID SEMI 	{$$ = newVarDec($1, $2, yylineno);}
+| type_specifier ID LSB NUMBER RSB SEMI		{$$ = newArrayDec($1, $2, $4, yylineno);}
+;
+
+fun_declaration: fun_head compound_stmt {$$ = newFunDec($1, $2, yylineno);}
+;
+
+fun_head: type_specifier ID LBracket params RBracket {$$ = newFunHead($1, $2, $4, yylineno);}
 ;
 
 compound_stmt: LBrace local_declarations statement_list RBrace	{$$ = newCompound($2, $3, yylineno);}
 ;
 
-params: param_list				{$$ = newParams($1);}
-| VOID						{$$ = newParams(NULL);}
+params: param_list				{$$ = $1;}
+| VOID						{$$ = NULL;}
 ;
 
-param_list: param_list SEMI param		{$$ = newParamList($1, $3);}
+param_list: param_list COMMA param		{$$ = newParamList($1, $3);}
 | param						{$$ = newParamList(NULL, $1);}
 ;
 
@@ -165,8 +172,10 @@ arg_list: arg_list COMMA expression		{$$ = newArgList($1, $3);}
 
 %%
 
+
 int yyerror(char *errmsg)
 {
      fprintf(stderr, "%d: %s at '%s' \n", yylineno, errmsg, yytext);
      return 0;
 }
+

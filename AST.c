@@ -7,7 +7,8 @@
 
 TreeNode * ASTRoot; /*Root of syntax tree*/
 
-static int GLOBAL_ST = TRUE; /* record current scope */
+static Scope current_scope = GLOBAL; /* record current scope for variable declaration */
+static FunSymbol* current_fun = NULL; /* which function's body are we in ?*/
 
 /* Add declaration as sibling*/
 TreeNode* newDecList(TreeNode* decList, TreeNode* declaration)
@@ -23,6 +24,14 @@ TreeNode* newDecList(TreeNode* decList, TreeNode* declaration)
      return decList;
 }
 
+TreeNode* newTypeSpe(ExpType type, int lineno)
+{
+     TreeNode* root = newASTNode(TYPE_AST, lineno);
+     root->type = type;
+     return root;
+}
+
+
 
 TreeNode* newVarDec(TreeNode* typeSpecifier, char* ID, int lineno)
 {
@@ -31,7 +40,7 @@ TreeNode* newVarDec(TreeNode* typeSpecifier, char* ID, int lineno)
           fprintf(stderr, "Error: @line %d, type specifier of variable %s must be int.\n", lineno, ID);
      }
 
-     if(!GLOBAL_ST){
+     if(current_scope == LOCAL){
           pushTable(CompoundST);
      }
 
@@ -44,7 +53,7 @@ TreeNode* newVarDec(TreeNode* typeSpecifier, char* ID, int lineno)
      root->attr.name = strdup(ID);
      root->type = TYPE_INTEGER;
 
-     if(!GLOBAL_ST){
+     if(current_scope == LOCAL){
           insert_var(root->attr.name, LOCAL, tables->size++, TYPE_INTEGER);
           popTable();
      }
@@ -62,7 +71,7 @@ TreeNode* newArrayDec(TreeNode* typeSpecifier, char* ID, int size, int lineno)
           fprintf(stderr, "Error: @line %d, type specifier of variable %s must be int.\n", lineno, ID);
      }
 
-     if(!GLOBAL_ST){
+     if(current_scope == LOCAL){
           pushTable(CompoundST);
      }
 
@@ -77,64 +86,77 @@ TreeNode* newArrayDec(TreeNode* typeSpecifier, char* ID, int size, int lineno)
      root->attr.value = size;
 
 
-     if(!GLOBAL_ST){
-          insert_var(root->attr.name, LOCAL, tables->size++, TYPE_ARRAY);
+     if(current_scope == LOCAL){
+          insert_var(root->attr.name, LOCAL, tables->size, TYPE_ARRAY);
+          tables->size += size;
           popTable();
      }
      else{
-          insert_var(root->attr.name, GLOBAL, tables->size++, TYPE_ARRAY);
+          insert_var(root->attr.name, GLOBAL, tables->size, TYPE_ARRAY);
+          tables->size += size;
      }
 
      return root;
 }
 
-
-TreeNode* newTypeSpe(ExpType type, int lineno)
+TreeNode* newFunDec(TreeNode* funHead, TreeNode* funBody, int lineno)
 {
-     TreeNode* root = newASTNode(TYPE_AST, lineno);
-     root->type = type;
+
+     TreeNode* root = newASTNode(FUNDEC_AST, lineno);
+     root->child[0] = funHead;
+     root->child[1] = funBody;
+
+
+
+     /* DEBUG: print symbol table of this compount statement */
+#ifdef DEBUG_SYM
+     fprintf(listing, "symbo table of Compound\n");
+     printSymTab(CompoundST);
+#endif
+     
+     funBody->symbolTable = CompoundST;
+     CompoundST = newSymbolTable(LOCAL);
+
+     /* leave function*/
+     popTable();
+     current_scope = GLOBAL;
+     current_fun = NULL;
+
      return root;
 }
 
 
-TreeNode* newFunDec(TreeNode* typeSpecifier, char* ID, TreeNode* params, TreeNode* compound, int lineno)
+TreeNode* newFunHead(TreeNode* typeSpecifier, char* ID, TreeNode* params, int lineno)
 {
-     ASSERT(typeSpecifier->type == compound->type){
-          fprintf(stderr, "Error: @line %d, return type mis-match declaration for function %s.\n", lineno, ID);
-
-     }
 
      ASSERT(lookup_fun(ID) == NULL){
           fprintf(stderr, "Error: @line %d, duplicate declarations of function %s.\n", lineno, ID);
      }
 
-     TreeNode* root = newASTNode(FUNDEC_AST, lineno);
-     root->child[0] = typeSpecifier;
-     root->child[1] = params;
-     root->child[2] = compound;
+     TreeNode* root = newASTNode(FUNHEAD_AST, lineno);
      root->attr.name = strdup(ID);
      root->type = typeSpecifier->type;
+     root->child[0] = typeSpecifier;
+     root->child[1] = params;
 
      /* print symbol table to test */
      #ifdef DEBUG_SYM
           fprintf(listing, "symbol table of function: %s\n", root->attr.name);
           printSymTab(ParamST);
      #endif
+     insert_fun(ID, ParamST, ParamST->size, root->type);
 
-
-     insert_fun(root->attr.name, ParamST, ParamST->size, root->type);
+     /* For processing function body*/
+     pushTable(ParamST);
+     current_scope = LOCAL;
+     current_fun = lookup_fun(ID);
 
      ParamST = newSymbolTable(PARAM);
 
-     GLOBAL_ST = TRUE;
+     
      return root;
 }
 
-TreeNode* newParams(TreeNode* paramList)
-{
-     GLOBAL_ST = FALSE;
-     return paramList;
-}
 
 TreeNode* newParamList(TreeNode* paramList, TreeNode* param)
 {
@@ -204,23 +226,17 @@ TreeNode* newCompound(TreeNode* localDecs, TreeNode* stmtList, int lineno)
           root->type = stmtList->type;
      else
           root->type = TYPE_VOID;
-     
 
-     /* DEBUG: print symbol table of this compount statement */
-#ifdef DEBUG_SYM
-     fprintf(listing, "symbo table of Compound\n");
-     printSymTab(CompoundST);
-#endif
-     
-     root->symbolTable = CompoundST;
-     CompoundST = newSymbolTable(LOCAL);
+
      return root;
 }
 TreeNode* newLocalDecs(TreeNode* localDecs, TreeNode* varDec)
 {
-     TreeNode* node = localDecs;
+
      if(localDecs == NULL)
           return varDec;
+
+     TreeNode* node = localDecs;
      while(node->sibling != NULL)
           node = node->sibling;
      node->sibling = varDec;
@@ -228,24 +244,11 @@ TreeNode* newLocalDecs(TreeNode* localDecs, TreeNode* varDec)
 }
 TreeNode* newStmtList(TreeNode* stmtList, TreeNode* stmt, int lineno)
 {
-     TreeNode* node = stmtList;
+     
      if(stmtList == NULL)
           return stmt;
-
-     /*
-     if(stmt->type != TYPE_UNDEFINED)       
-     {
-          if(stmtList->type == TYPE_UNDEFINED) 
-               stmtList->type = stmt->type; 
-          else
-               ASSERT(stmtList->type == stmt->type){
-                    fprintf(stderr, "Error: @line %d, return type mis-match.\n", lineno);
-
-               }
-     }
-     */
      
-
+     TreeNode* node = stmtList;
      while(node->sibling != NULL)
           node = node->sibling;
      node->sibling = stmt;
@@ -290,12 +293,21 @@ TreeNode* newIterStmt(TreeNode* expression,  TreeNode* stmt, int lineno)
 /*return*/
 TreeNode* newRetStmt(TreeNode* expression, int lineno)
 {
+     ExpType type;
+     if(expression!= NULL)
+          type = expression->type;
+     else
+          type = TYPE_VOID;
+
+     ASSERT(type == current_fun->type){
+          fprintf(stderr, "Error: @line %d, return type mis-match.\n", lineno);
+
+     }
+
      TreeNode* root = newASTNode(RETSTMT_AST, lineno);
      root->child[0] = expression;
-     if(expression != NULL)
-          root->type = expression->type;
-     else
-          root->type = TYPE_VOID;
+     root->type = type;
+
      return root;
 }
 
@@ -341,8 +353,6 @@ TreeNode* newArrayVar(char* ID, TreeNode* expression, int lineno)
           fprintf(stderr, "Error: @line %d, array %s: index is not integer.\n", lineno, ID);
 
      }
-
-     
 
      /*Check declaration */
      pushTable(CompoundST);
@@ -425,30 +435,29 @@ TreeNode* newNumNode(int value, int lineno)
 
 TreeNode* newCall(char* ID, TreeNode* args, int lineno)
 {
-     FunSymbol* fun;
-     VarSymbol* var;
-     TreeNode* tmp = args;
-     /* Check declaration */
-     fun = lookup_fun(ID);
+     FunSymbol* fun = lookup_fun(ID);
      ASSERT(fun != NULL){
           fprintf(stderr, "Error: @line %d, call function %s which is not defined.\n", lineno, ID);
      }
-     /*Check parameters*/
-     var = fun->symbolTable->varList;
+
+
+     VarSymbol* var = fun->symbolTable->varList;
+     TreeNode* tmp = args;
 
      while(var && tmp){
-          ASSERT(var->type == tmp->type){
-          fprintf(stderr, "Error: @line %d, call function %s : parameter type mis-match.\n", lineno, ID);
-          }
-          var = var->next_FIFO;
-          tmp = tmp->sibling;
+        ASSERT(var->type == tmp->type){
+        fprintf(stderr, "Error: @line %d, call function %s : parameter type mis-match.\n", lineno, ID);
+        }
+        var = var->next_FIFO;
+        tmp = tmp->sibling;
      }
 
      ASSERT(!var && !tmp){
-          fprintf(stderr, "Error: @line %d, call function %s : parameter number mis-match.\n", lineno, ID);
+        fprintf(stderr, "Error: @line %d, call function %s : parameter number mis-match.\n", lineno, ID);
      }
 
      /*Check finished*/
+
      TreeNode* root = newASTNode(CALL_AST, lineno);
      root->child[0] = args;
      root->attr.name = strdup(ID);

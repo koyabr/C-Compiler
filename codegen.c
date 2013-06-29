@@ -5,13 +5,33 @@
 #include "symtab.h"
 #include "codegen.h"
 
+/* stack used for call */
+TreeNode* paramStack[SIZE];
+int top = 0;
 
+/* stack routines*/
+int pushParam(TreeNode* param)
+{
+    if(top == SIZE) 
+      return 1;
+
+    paramStack[top++] = param;
+    return 0;
+}
+
+TreeNode* popParam()
+{
+  if(top == 0)
+    return NULL;
+
+  return paramStack[--top];
+}
 
 /* current location */
-static int emitLoc = 0 ;
+int emitLoc = 0 ;
 
 /* Highest TM location emitted so far */
-static int highEmitLoc = 0;
+int highEmitLoc = 0;
 
 /* skips "howMany" locations for later backpatch
  * returns the current code position
@@ -114,10 +134,20 @@ void emitGetAddr(VarSymbol *var)
 
   switch(var->scope){
     case GLOBAL:
-        emitRM("LDA",bx,-1-(var->offset),gp,"get global address");
+        if(var->type == TYPE_ARRAY){
+          emitRM("LDA",bx,-(var->offset),gp,"get global array address");
+        }
+        else{
+          emitRM("LDA",bx,-1-(var->offset),gp,"get global address");
+        }
         break;
     case LOCAL:
-        emitRM("LDA",bx,-1-(var->offset),bp,"get local address");
+        if(var->type == TYPE_ARRAY){
+          emitRM("LDA",bx,-(var->offset),bp,"get local array address");
+        }
+        else{
+          emitRM("LDA",bx,-1-(var->offset),bp,"get local address");
+        }
         break;
     case PARAM:
         if(var->type == TYPE_ARRAY){
@@ -147,11 +177,15 @@ void emitCall(FunSymbol *fun)
 
 /* getValue:
  * 1 - store value in ax
- * 2 - store address in bx
+ * 0 - store address in bx
  */
 static int getValue = 1;
 
-
+/* isRecursive:
+ * 1 - cGen will recurse on sibling
+ * 0 - cGen won't recurse on sibling
+ */
+static int isRecursive = 1;
 
 /* recursively generates code by tree traversal */
 void cGen( TreeNode * tree)
@@ -164,7 +198,7 @@ void cGen( TreeNode * tree)
   FunSymbol *fun;
 
     while(tree){
-      printf("process ast node of lineno: %d\n", tree->lineno);
+      
 
         switch (tree->astType) {
 
@@ -172,8 +206,8 @@ void cGen( TreeNode * tree)
               
               if (TraceCode) emitComment("-> function:");
 
-              p1 = tree->child[1];/*name*/
-              p2 = tree->child[3];/*body*/
+              p1 = tree->child[0];/*head*/
+              p2 = tree->child[1];/*body*/
 
               fun = lookup_fun(p1->attr.name);
               fun->offset = emitSkip(0);
@@ -183,6 +217,7 @@ void cGen( TreeNode * tree)
               emitRM("LDA",sp,-1,sp,"push prepare");
               emitRM("ST",bp,0,sp,"push old bp");
               emitRM("LDA",bp,0,sp,"let bp == sp");
+              emitRM("LDA",sp,-(p2->symbolTable->size),sp,"allocate for local variables");
 
               /*push param symtab, prepare for body*/
               
@@ -190,6 +225,15 @@ void cGen( TreeNode * tree)
               /*generate body*/
               cGen(p2); 
               popTable();
+
+              /*generate return code for void functions*/
+              if(p1->type == TYPE_VOID){
+                  /*return*/
+                  emitRM("LDA",sp,0,bp,"let sp == bp");
+                  emitRM("LDA",sp,2,sp,"pop prepare");
+                  emitRM("LD",bp,-2,sp,"pop old bp");
+                  emitRM("LD",pc,-1,sp,"pop return addr");
+              }
 
               if (TraceCode) emitComment("<- function");
               
@@ -199,11 +243,14 @@ void cGen( TreeNode * tree)
              
               if (TraceCode) emitComment("-> compound");
               p1 = tree->child[1];/*statements*/
-              pushTable(tree->symbolTable);
-              printf("before stmtlist\n");
+              
+              if(tree->symbolTable)
+                pushTable(tree->symbolTable);
+              
               cGen(p1);
-              printf("after stmtlist\n");
-              popTable();
+              
+              if(tree->symbolTable)
+                popTable();
               if (TraceCode) emitComment("<- compound");
               break;
 
@@ -247,7 +294,9 @@ void cGen( TreeNode * tree)
              cGen(p2);
              emitRM("LDA",pc,savedLoc1,zero,"jump to test");
              currentLoc = emitSkip(0);
+             printf("before: emitLoc = %d", emitLoc);
              emitBackup(savedLoc2);
+             printf("after: emitLoc = %d", emitLoc);
              emitRM("JEQ",ax,currentLoc,zero,"jump to end");
              emitRestore();
              if (TraceCode)  emitComment("<- while") ;
@@ -299,10 +348,18 @@ void cGen( TreeNode * tree)
              var = lookup_var(tree->attr.name);
              emitGetAddr(var);
 
+             /* protect bx*/
+             emitRM("LDA",sp,-1,sp,"push prepare");
+             emitRM("ST",bx,0,sp,"protect array address");
+
              tmp = getValue;
              getValue = 1;
              cGen(p1);
              getValue = tmp;
+
+             /* recover bx*/
+             emitRM("LDA",sp,1,sp,"pop prepare");
+             emitRM("LD",bx,-1,sp,"recover array address");
 
              emitRO("SUB",bx,bx,ax,"get address of array element");
              if(getValue)
@@ -318,12 +375,18 @@ void cGen( TreeNode * tree)
              if (TraceCode) emitComment("-> assign") ;
              p1 = tree->child[0];/*left*/
              p2 = tree->child[1];/*right*/
-             /* left value (get its address)*/
+             /* left value (get its address -> bx)*/
              getValue = 0;
              cGen(p1);
-             /* right value */
+             /* protect bx*/
+             emitRM("LDA",sp,-1,sp,"push prepare");
+             emitRM("ST",bx,0,sp,"protect bx");
+             /* right value -> ax*/
              getValue = 1;
              cGen(p2);
+             /* recover bx*/
+             emitRM("LDA",sp,1,sp,"pop prepare");
+             emitRM("LD",bx,-1,sp,"recover bx");
              /* now we can assign*/
              emitRM("ST",ax,0,bx,"assign: store");
              if (TraceCode)  emitComment("<- assign") ;
@@ -337,11 +400,12 @@ void cGen( TreeNode * tree)
              cGen(p1);
              /* store left operand */
              emitRM("LDA",sp,-1,sp,"push prepare");
-             emitRM("ST",ax,0,sp,"op: push left");
+             emitRM("ST",ax,0,sp,"op: protect left");
              
              cGen(p2);
              /* now load left operand */
-             emitRM("LD",bx,0,sp,"op: load left");
+             emitRM("LDA",sp,1,sp,"pop prepare");
+             emitRM("LD",bx,-1,sp,"op: recover left");
              switch (tree->attr.op) {
                 case PLUS :
                    emitRO("ADD",ax,bx,ax,"op +");
@@ -409,14 +473,20 @@ void cGen( TreeNode * tree)
              if (TraceCode) emitComment("-> call") ;
              p1 = tree->child[0];/*arguments*/
 
-            /* first - push parameters */
              while(p1 != NULL){
+                pushParam(p1);
+                p1 = p1->sibling;
+             }
+
+            /* first - push parameters */
+             isRecursive = 0;
+             while( (p1 = popParam()) != NULL){
+                printf("process p1 node of type: %d\n",p1->astType);
                 cGen(p1);
                 emitRM("LDA",sp,-1,sp,"push prepare");
                 emitRM("ST",ax,0,sp,"push parameters");
-
-                p1 = p1->sibling;
              }
+             isRecursive = 1;
 
              /*second - call function*/
              fun = lookup_fun(tree->attr.name);
@@ -430,11 +500,13 @@ void cGen( TreeNode * tree)
             break;
         }
 
-
-
-      tree = tree->sibling;
+      if(isRecursive)
+        tree = tree->sibling;
+      else
+        break;
     }
 }
+
 
 
 /* the primary function of the code generator */

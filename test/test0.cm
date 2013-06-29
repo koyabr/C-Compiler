@@ -4,9 +4,9 @@ int main(void)
         int bb;
         int cc;
 
-		aa = 1;
+		aa = 3;
 		bb = 2;
-		cc = 3;
+		cc = 1;
 
         cc = bb+cc*aa/bb-cc;
 		output(cc);

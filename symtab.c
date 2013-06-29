@@ -35,7 +35,8 @@ void initTable()
      ParamST = newSymbolTable(PARAM);
      tables = newSymbolTable(GLOBAL);
 
-     insert_fun("input", NULL, 0, TYPE_VOID);
+     insert_fun("input", ParamST, 0, TYPE_INTEGER);
+     ParamST = newSymbolTable(PARAM);
 
      pushTable(ParamST);
      insert_var("i", PARAM, ParamST->size++, TYPE_INTEGER);
@@ -208,8 +209,8 @@ int insert_fun(char* name, SymbolTable* st, int num, ExpType type)
 void printSymTab(SymbolTable* st)
 {
      int i;
-     fprintf(listing,"Variable Name  Type\n");
-     fprintf(listing,"-------------  ----   ------------\n");
+     fprintf(listing,"Variable Name  Offset\n");
+     fprintf(listing,"-------------  ------\n");
      VarSymbol* vs = NULL;
      for (i=0;i<SIZE;++i)
      {

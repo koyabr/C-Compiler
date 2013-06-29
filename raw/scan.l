@@ -14,7 +14,16 @@ identifier  {letter}+
 newline     \n
 whitespace  [ \t]+
 
+%x C_COMMENT
+
 %%
+
+
+"/*"            { BEGIN(C_COMMENT); }
+<C_COMMENT>"*/" { BEGIN(INITIAL); }
+<C_COMMENT>.    { }
+
+
 
 "if" {return IF;}
 "else" {return ELSE;}
@@ -59,6 +68,9 @@ whitespace  [ \t]+
 	}
 
 {whitespace} {/* skip */}
+
+
+
 
 . {fprintf(stderr, "MISS MATCH: %c\n", yytext[0]);}
 %%

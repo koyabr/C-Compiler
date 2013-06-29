@@ -45,9 +45,8 @@ typedef enum{GLOBAL, LOCAL, PARAM} Scope;
 /* ExpType is used for type checking */
 typedef enum {TYPE_INTEGER, TYPE_VOID, TYPE_ARRAY, TYPE_UNDEFINED} ExpType;
 
-typedef enum {VARDEC_AST, ARRAYDEC_AST, FUNDEC_AST,
-              TYPE_AST,
-              PARAMID_AST, PARAMARRAY_AST,
+typedef enum { TYPE_AST, VARDEC_AST, ARRAYDEC_AST, FUNDEC_AST,
+               FUNHEAD_AST, PARAMID_AST, PARAMARRAY_AST,
               COMPOUND_AST,
               EXPSTMT_AST, SELESTMT_AST, ITERSTMT_AST, RETSTMT_AST, ASSIGN_AST,
               EXP_AST, VAR_AST, ARRAYVAR_AST,
