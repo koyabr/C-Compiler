@@ -1,9 +1,14 @@
-/*CODEGEN*/
+/*code generator
+ * - To generate utimate TM codes from syntax tree and symbol tables.
+ */
 
 #ifndef CODEGEN_H
 #define CODEGEN_H
 
 #include "globals.h"
+
+/*debug flag*/
+#define TraceCode TRUE
 
 /*data register*/
 #define zero 0

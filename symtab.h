@@ -1,5 +1,5 @@
-/*build symbol table
- *make type check
+/*build symbol tables
+ * and function tables
  */
 
 #ifndef SYMTAB_H

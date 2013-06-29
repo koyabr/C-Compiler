@@ -1,4 +1,6 @@
-/*Codegen*/
+/*code generator
+ * - To generate utimate TM codes from syntax tree and symbol tables.
+ */
 
 #include "globals.h"
 #include "parse.h"

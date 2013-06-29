@@ -10,7 +10,7 @@ LFLAGS =
 YACC = bison
 YFLAGS = -d
 
-SRC = main.c utils.c scan.c parse.c AST.c symtab.c codegen.c
+SRC = main.c scan.c parse.c AST.c symtab.c codegen.c
 
 
 all: main tm

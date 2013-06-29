@@ -1,3 +1,7 @@
+/*build symbol tables
+ * and function tables
+ */
+
 #include "globals.h"
 #include "symtab.h"
 
@@ -45,7 +49,7 @@ void initTable()
      ParamST = newSymbolTable(PARAM);
 }
 
-
+/* create a new symbol table of certain scope */
 SymbolTable* newSymbolTable(Scope scope)
 {
      int i;
@@ -62,6 +66,8 @@ SymbolTable* newSymbolTable(Scope scope)
      return st;
 }
 
+
+/* manipulate the symbol table stack*/
 SymbolTable* topTable()
 {
      return tables;
@@ -85,6 +91,8 @@ void pushTable(SymbolTable* st)
      tables = st;
 }
 
+
+/* look up for variables in top symbol table*/
 VarSymbol* lookup_var_top(char* name)
 {
     if(tables == NULL)
@@ -122,6 +130,7 @@ VarSymbol* lookup_var (char * name)
      return NULL;                  /* may be NULL */
 }
 
+/* look up for a function symbol*/
 FunSymbol* lookup_fun(char * name)
 {
      if(funs == NULL)

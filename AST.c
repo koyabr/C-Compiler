@@ -1,5 +1,9 @@
+/*generate a systax tree
+ *also perform type check
+ */
+
+
 #include "globals.h"
-#include "utils.h"
 #include "parse.h"
 #include "symtab.h"
 #include "AST.h"

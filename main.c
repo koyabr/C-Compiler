@@ -4,7 +4,6 @@ Compiler Design Course Project
 ***************************/
 
 #include "globals.h"
-#include "utils.h"
 #include "parse.h"
 #include "symtab.h"
 #include "codegen.h"
@@ -14,18 +13,6 @@ Compiler Design Course Project
 FILE* source; /* source code text file */
 FILE* listing; /* listing output text file */
 FILE* code; /* code text file for TM simulator */
-
-
-/*debug flags*/
-int EchoSource = FALSE;
-int TraceScan = FALSE;
-int TraceParse = FALSE;
-int TraceAnalyze = FALSE;
-int TraceCode = TRUE;
-
-int Error = FALSE;
-
-
 
 int main(int argc, char *argv[])
 {
@@ -53,16 +40,8 @@ int main(int argc, char *argv[])
     yyparse();
     fclose(source);
     
-
-    if (! Error){ 
-      fprintf(listing,"\nParsing Finished...\n");
-      fprintf(listing,"\nSemantic Analysis Finished...\n");
-    }
-    else{
-      fprintf(listing, "\nError occurred in Parsing&Analyzing!\n");
-      return 1;
-    }
-
+    fprintf(listing,"\nParsing Finished...\n");
+    fprintf(listing,"\nSemantic Analysis Finished...\n");
 
     char * codefile = (char *) calloc(strlen(sourcefile), sizeof(char));
     strcpy(codefile,sourcefile);
@@ -74,15 +53,8 @@ int main(int argc, char *argv[])
     codeGen();
     fclose(code);
 
-    if(! Error){
-      fprintf(listing,"\nCode Generation Finished...\n");
-      fprintf(listing, "\nSee %s for result codes.\n", codefile);
-    }
-    else{
-      fprintf(listing, "\nError occurred in Code generating!\n");
-      return 1;
-    }
-    
+    fprintf(listing,"\nCode Generation Finished...\n");
+    fprintf(listing, "\nSee %s for result codes.\n", codefile);
 
     return 0;
 }

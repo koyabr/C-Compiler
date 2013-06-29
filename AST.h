@@ -1,4 +1,6 @@
-/*generate a systax tree*/
+/*generate a systax tree
+ *also perform type check
+ */
 
 
 #ifndef AST_H
