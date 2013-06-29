@@ -7,12 +7,11 @@
 
 #include "globals.h"
 
- /* SIZE is the size of the hash table */
-#define SIZE 211
+/* the hash function */
+int hash ( char * key );
 
-/* SHIFT is the power of two used as multiplier
-   in hash function  */
-#define SHIFT 4
+/* initialize symbol tables*/
+void initTable();
 
 /* create a new symbol table of certain scope */
 SymbolTable* newSymbolTable(Scope s);
@@ -23,12 +22,13 @@ SymbolTable* popTable();
 void pushTable(SymbolTable* st);
 
 /* look up for a symbol entry*/
+VarSymbol* lookup_var_top(char* name);
 VarSymbol* lookup_var(char * name);
 FunSymbol* lookup_fun(char * name);
 
 /* insert symbol entries */
-void insert_var(char * name, Scope s, int offset, ExpType type);
-void insert_fun(char* name, SymbolTable* st, int num);
+int insert_var(char * name, Scope s, int offset, ExpType type);
+int insert_fun(char* name, SymbolTable* st, int num, ExpType type);
 
 
 

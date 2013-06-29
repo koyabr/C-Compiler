@@ -55,6 +55,14 @@ void emitBackup( int loc);
 void emitRestore(void);
 
 
+/* generate standard prelude */
+void emitPrelude();
+
+/* generate codes for input() */
+void emitInput();
+
+/* generate codes for output() */
+void emitOutput();
 
 /* emit one instruction to get the address of a symbol */
 void emitGetAddr(VarSymbol* var);

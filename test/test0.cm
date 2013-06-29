@@ -1,12 +1,15 @@
-int hehe(void)
-{
-       int hehe;
-}
-int main(int a)
+int main(void)
 {
         int aa;
         int bb;
         int cc;
-        a = bb+cc*a/bb-cc;
+
+		aa = 1;
+		bb = 2;
+		cc = 3;
+
+        cc = bb+cc*aa/bb-cc;
+		output(cc);
+
         return 1;
 }

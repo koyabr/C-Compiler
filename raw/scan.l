@@ -2,7 +2,6 @@
 
 %{
 #include "globals.h"
-#include "utils.h"
 #include "parse.h"
 %}
 %option noyywrap
@@ -61,5 +60,5 @@ whitespace  [ \t]+
 
 {whitespace} {/* skip */}
 
-. {printf("MISS MATCH: %c\n", yytext[0]);}
+. {fprintf(stderr, "MISS MATCH: %c\n", yytext[0]);}
 %%

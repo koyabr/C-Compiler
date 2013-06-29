@@ -1,6 +1,7 @@
 /*Codegen*/
 
 #include "globals.h"
+#include "parse.h"
 #include "symtab.h"
 #include "codegen.h"
 
@@ -64,9 +65,47 @@ void emitRM( char * op, int r, int d, int s, char *c)
   if (highEmitLoc < emitLoc)  highEmitLoc = emitLoc ;
 } 
 
+/*******************************/
 
+/* generate standard prelude */
+void emitPrelude()
+{
+   if (TraceCode) emitComment("Begin prelude");
+   emitRM("LD",gp,0,zero,"load from location 0");
+   emitRM("ST",zero,0,zero,"clear location 0");
+   emitRM("LDA",sp,-(topTable()->size),gp,"allocate for global variables");
+   if (TraceCode) emitComment("End of prelude");
+}
 
-/* emit one instruction to get the address of a var
+/* generate codes for input() */
+void emitInput()
+{
+
+   if (TraceCode) emitComment("Begin input()");
+   FunSymbol* fun = lookup_fun("input");
+   fun->offset = emitSkip(0);
+   emitRO("IN",ax,0,0,"read input into ax");
+   emitRM("LDA",sp,1,sp,"pop prepare");
+   emitRM("LD",pc,-1,sp,"pop return addr");
+   if (TraceCode) emitComment("End input()");
+}
+
+/* generate codes for output() */
+void emitOutput()
+{
+
+   if (TraceCode) emitComment("Begin output()");
+   FunSymbol* fun = lookup_fun("output");
+   fun->offset = emitSkip(0);
+   emitRM("LD",ax,1,sp,"load param into ax");
+   emitRO("OUT",ax,0,0,"output using ax");
+   emitRM("LDA",sp,1,sp,"pop prepare");
+   emitRM("LD",pc,-1,sp,"pop return addr");
+   if (TraceCode) emitComment("End output()");
+}
+  
+
+/* emit one instruction to get the address of a var,
  * store the address in bx,
  * we can access the var by bx[0]
  */
@@ -74,7 +113,7 @@ void emitGetAddr(VarSymbol *var)
 {
 
   switch(var->scope){
-    case GLOABL:
+    case GLOBAL:
         emitRM("LDA",bx,-1-(var->offset),gp,"get global address");
         break;
     case LOCAL:
@@ -125,16 +164,9 @@ void cGen( TreeNode * tree)
   FunSymbol *fun;
 
     while(tree){
+      printf("process ast node of lineno: %d\n", tree->lineno);
 
         switch (tree->astType) {
-
-          case EXPSTMT_AST:
-              if (TraceCode) emitComment("-> exp statement");
-              p1 = tree->child[0];/*expression*/
-              cGen(p1);
-              if (TraceCode) emitComment("<- exp statement");
-
-             break;
 
           case FUNDEC_AST:
               
@@ -168,7 +200,9 @@ void cGen( TreeNode * tree)
               if (TraceCode) emitComment("-> compound");
               p1 = tree->child[1];/*statements*/
               pushTable(tree->symbolTable);
+              printf("before stmtlist\n");
               cGen(p1);
+              printf("after stmtlist\n");
               popTable();
               if (TraceCode) emitComment("<- compound");
               break;
@@ -188,7 +222,7 @@ void cGen( TreeNode * tree)
              emitComment("jump to end");
              currentLoc = emitSkip(0) ;
              emitBackup(savedLoc1) ;
-             emitRM_Abs("JEQ",ax,currentLoc,zero"if: jmp to else");
+             emitRM("JEQ",ax,currentLoc,zero,"if: jmp to else");
              emitRestore() ;
              /* recurse on else part */
              cGen(p3);
@@ -262,7 +296,7 @@ void cGen( TreeNode * tree)
              if(TraceCode) emitComment("-> array element");
              p1 = tree->child[0];/*index expression*/
 
-             var = lookup(tree->attr.name);
+             var = lookup_var(tree->attr.name);
              emitGetAddr(var);
 
              tmp = getValue;
@@ -322,8 +356,7 @@ void cGen( TreeNode * tree)
                    emitRO("DIV",ax,bx,ax,"op /");
                    break;
                 case EQ :
-                   emitRO("SUB",a
-                    x,bx,ax,"op ==") ;
+                   emitRO("SUB",ax,bx,ax,"op ==") ;
                    emitRM("JEQ",ax,2,pc,"br if true") ;
                    emitRM("LDC",ax,0,0,"false case") ;
                    emitRM("LDA",pc,1,pc,"unconditional jmp") ;
@@ -387,7 +420,7 @@ void cGen( TreeNode * tree)
 
              /*second - call function*/
              fun = lookup_fun(tree->attr.name);
-             emitCall(symbol_func);
+             emitCall(fun);
              
 
              if (TraceCode)  emitComment("<- call") ;
@@ -407,46 +440,27 @@ void cGen( TreeNode * tree)
 /* the primary function of the code generator */
 void codeGen()
 {  
-   int loc;
-   FunSymbol* fun;
 
 
-   /* generate standard prelude */
-   if (TraceCode) emitComment("Begin prelude");
-   emitRM("LD",gp,0,zero,"load from location 0");
-   emitRM("ST",zero,0,zero,"clear location 0");
-   emitRM("LDA",sp,-(topTable()->size),gp,"allocate for global variables");
-   if (TraceCode) emitComment("End of prelude");
+   emitPrelude();
+
 
    /* Jump to main() */
    if (TraceCode) emitComment("Jump to main()");
-   loc = emitSkip(6); /*A call consumes 5 instructions, and we need halt after main()*/
+   int loc = emitSkip(6); /*A call consumes 5 instructions, and we need halt after main()*/
 
 
-   /* declare input/output functions */
-   if (TraceCode) emitComment("Begin input()");
-   fun = lookup_fun("input");
-   fun->offset = emitSkip(0);
-   emitRO("IN",ax,0,0,"read input into ax");
-   emitRM("LDA",sp,1,sp,"pop prepare");
-   emitRM("LD",pc,-1,sp,"pop return addr");
-   if (TraceCode) emitComment("End input()");
+   emitInput();
+   emitOutput();
 
-   if (TraceCode) emitComment("Begin output()");
-   fun = lookup_fun("output");
-   emitRM("LD",ax,1,sp,"load param into ax");
-   emitRO("OUT",ax,0,0,"output using ax");
-   emitRM("LDA",sp,1,sp,"pop prepare");
-   emitRM("LD",pc,-1,sp,"pop return addr");
-   if (TraceCode) emitComment("End output()");
-
-
-   /* generate code for syntax tree */
+   printf("before cgen\n");
    cGen(ASTRoot);
 
    /* Fill up jump-to-main code */
    emitBackup(loc);
-   fun = lookup_fun("main");
+   printf("before find main\n");
+   FunSymbol* fun = lookup_fun("main");
+   printf("after find main\n");
    emitCall(fun);
    emitRO("HALT",0,0,0,"END OF PROGRAM");
 

@@ -8,8 +8,16 @@ SymbolTable* tables = NULL;
 /* funs store all function symbols */
 FunSymbol* funs = NULL;
 
+
+
+/* temporary table used to allocate small symtabs for Compound & Param */
+SymbolTable* CompoundST;
+SymbolTable* ParamST;
+
+
+
 /* the hash function */
-static int hash ( char * key )
+int hash ( char * key )
 {
      int temp = 0;
      int i = 0;
@@ -20,6 +28,23 @@ static int hash ( char * key )
      return temp;
 }
 
+/* Note: we insert for input()&output() here*/
+void initTable()
+{
+     CompoundST = newSymbolTable(LOCAL);
+     ParamST = newSymbolTable(PARAM);
+     tables = newSymbolTable(GLOBAL);
+
+     insert_fun("input", NULL, 0, TYPE_VOID);
+
+     pushTable(ParamST);
+     insert_var("i", PARAM, ParamST->size++, TYPE_INTEGER);
+     popTable();
+     insert_fun("output", ParamST, ParamST->size, TYPE_VOID);
+     ParamST = newSymbolTable(PARAM);
+}
+
+
 SymbolTable* newSymbolTable(Scope scope)
 {
      int i;
@@ -28,8 +53,9 @@ SymbolTable* newSymbolTable(Scope scope)
         fprintf(stderr, "Failed to malloc for symbal table.\n");
      }
      st->scope = scope;
-     st->startOffset = 0;      
+     st->size = 0;      
      st->next = NULL;
+     st->varList = NULL;
      for(i = 0;i<SIZE;i++)
           st->hashTable[i] = NULL;
      return st;
@@ -58,18 +84,35 @@ void pushTable(SymbolTable* st)
      tables = st;
 }
 
+VarSymbol* lookup_var_top(char* name)
+{
+    if(tables == NULL)
+      return NULL;
 
+    VarSymbol* l;
+    int h = hash(name);
+    for(l = tables->hashTable[h]; l!=NULL; l=l->next){
+        if(strcmp(l->name, name) == 0 )
+            break;
+    }
 
+    return l;
+}
 
+/* lookup for all tables in the stack */
 VarSymbol* lookup_var (char * name)
 {
-     VarSymbol* l;
+     if(tables == NULL)
+        return NULL;
+
+       
      int h = hash(name);
-     SymbolTable* st = NULL;
-     assert(tables != NULL);
-     for(st = tables; st!=NULL; st=st->next)
+     SymbolTable* st;
+     VarSymbol* l;
+     
+     for(st = tables; st!=NULL; st=st->next) /* iteration of all symbol tables in stack */
      {
-          for(l = tables->hashTable[h]; l!=NULL; l=l->next)
+          for(l = st->hashTable[h]; l!=NULL; l=l->next) /* iteration of all linkedlist in a symboltable */
           {
                if(strcmp(l->name, name)==0)
                     return l;
@@ -80,63 +123,92 @@ VarSymbol* lookup_var (char * name)
 
 FunSymbol* lookup_fun(char * name)
 {
-     FunSymbol* fs = funs;
-     for(;fs!=NULL; fs = fs->next)
+     if(funs == NULL)
+        return NULL;
+     FunSymbol* fs;
+     for(fs=funs;fs!=NULL; fs = fs->next)
      {
           if(strcmp(fs->name, name)==0)
-               return fs;
+               break;
      }
-     return NULL;
+     return fs;
 }
 
-/* insert into top symbol table */
-void insert_var(char * name, Scope scope, int offset, ExpType type)
+/* Always insert var into the top symbol table*/
+int insert_var(char * name, Scope scope, int offset, ExpType type)
 {
+     VarSymbol* l, *tmp;
      int h = hash(name);
-     VarSymbol* l =  tables->hashTable[h];
-     while ((l != NULL) && (strcmp(name,l->name) != 0))
+
+     /*Check duplication*/
+     if(tables == NULL){
+        l = NULL;
+      }
+     else{
+        l =  tables->hashTable[h];
+        while ((l != NULL) && (strcmp(name,l->name) != 0))
           l = l->next;
-     if (l == NULL) /* variable not yet in table */
-     {
-          l = (VarSymbol*) malloc(sizeof(VarSymbol));
-          ASSERT(l != NULL){
-            fprintf(stderr, "Failed to malloc for VarSymbol.\n" );
-          }
-          l->name = (name);
-          l->scope = scope;
-          l->type = type;
-          l->offset = offset;
-          l->next = tables->hashTable[h];
-          tables->hashTable[h] = l;
      }
+
+
+     if (l != NULL){
+        fprintf(stderr, "Duplicate declarations of variable: %s.\n", name);
+        return 1;
+     }
+
+      l = (VarSymbol*) malloc(sizeof(VarSymbol));
+      ASSERT(l != NULL){
+        fprintf(stderr, "Failed to malloc for VarSymbol.\n" );
+      }
+      l->name = strdup(name);
+      l->scope = scope;
+      l->type = type;
+      l->offset = offset;
+      l->next = tables->hashTable[h];
+      tables->hashTable[h] = l;
+      l->next_FIFO = NULL;
+      if(tables->varList == NULL){ /*First insertion*/
+          tables->varList = l;
+      }
+      else{
+          for(tmp=tables->varList; tmp->next_FIFO != NULL; tmp = tmp->next_FIFO);
+          tmp->next_FIFO = l;
+      }
+
+      return 0;
+
 } 
 
-void insert_fun(char* name, SymbolTable* st, int num)
+int insert_fun(char* name, SymbolTable* st, int num, ExpType type)
 {
      FunSymbol* fs;
 
+     /*Check duplication*/
      if(lookup_fun(name) != NULL){
-        fprintf(stderr, "Duplicate function declarations: %s\n", name);
-        return;
+        fprintf(stderr, "Duplicate declarations of function: %s\n", name);
+        return 1;
      }
      fs = (FunSymbol*)malloc(sizeof(FunSymbol));
      ASSERT(fs != NULL){
         fprintf(stderr, "Failed to malloc for FunSymbol.\n");
      }
      fs->name = strdup(name);
+     fs->type = type;
      fs->paramNum = num;
      fs->symbolTable = st;
      fs->next = funs;
      funs = fs;
+
+     return 0;
 }
                    
 
 
-/*
+
 void printSymTab(SymbolTable* st)
 {
      int i;
-     fprintf(listing,"Variable Name  Type      Line Numbers\n");
+     fprintf(listing,"Variable Name  Type\n");
      fprintf(listing,"-------------  ----   ------------\n");
      VarSymbol* vs = NULL;
      for (i=0;i<SIZE;++i)
@@ -148,7 +220,10 @@ void printSymTab(SymbolTable* st)
                fprintf(listing, "\n");
           }
      }
-} */
+
+     fprintf(listing, "\n");
+}
+
 
 
 

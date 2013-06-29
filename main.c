@@ -25,60 +25,65 @@ int TraceCode = FALSE;
 
 int Error = FALSE;
 
-TreeNode * ASTRoot; /*Root of syntax tree*/
-
-SymbolTable* CompoundST; /*Temporary symbol table for compound*/
-SymbolTable* ParamST;/* Tempopary symbol table for parameters */
 
 
-
-void init()
-{
-     CompoundST = newSymbolTable(LOCAL);
-     ParamST = newSymbolTabl(PARAM);
-}
 int main(int argc, char *argv[])
 {
   
     char sourcefile[FILE_NAME_LEN]; /* source code file name */
 
-    ASSERT(argc == 2){ 
-      fprintf(stderr,"usage: %s <filename>\n",argv[0]);
+    if (argc != 2){ 
+        fprintf(stderr,"usage: %s <filename>\n",argv[0]);
+        strcpy(sourcefile,"./test/test0.cm") ;
+    }
+    else{
+        strcpy(sourcefile,argv[1]) ;
     }
 
-    strcpy(sourcefile,argv[1]) ;
     source = fopen(sourcefile,"r");
     ASSERT(source != NULL){ 
-      fprintf(stderr,"File %s not found\n",sourcefile);
+      fprintf(stderr,"File %s not found.\n",sourcefile);
     }
 
     listing = stdout; /* send listing to screen */
     fprintf(listing,"\nC-minus Compiler\ntarget: %s\n",sourcefile);
 
+    initTable();
     yyrestart(source);
     yyparse();
-    fprintf(listing,"\nParsing Finished...\n");
+    fclose(source);
+    
 
     if (! Error){ 
-      
-      // ??????
+      fprintf(listing,"\nParsing Finished...\n");
       fprintf(listing,"\nSemantic Analysis Finished...\n");
     }
-
-    if (! Error){ 
-      char * codefile = (char *) calloc(strlen(sourcefile), sizeof(char));
-      strcpy(codefile,sourcefile);
-      strcat(codefile,".tm");
-      code = fopen(codefile,"w");
-      ASSERT(code != NULL){ 
-        fprintf(stderr, "Unable to open %s\n",codefile);
-      }
-      codeGen();
-      fclose(code);
-      fprintf(listing,"\nCode Generation Finished...\n");
+    else{
+      fprintf(listing, "\nError occurred in Parsing&Analyzing!\n");
+      return 1;
     }
 
-    fclose(source);
+
+    char * codefile = (char *) calloc(strlen(sourcefile), sizeof(char));
+    strcpy(codefile,sourcefile);
+    strcat(codefile,".tm");
+    code = fopen(codefile,"w");
+    ASSERT(code != NULL){ 
+      fprintf(stderr, "Unable to open %s for output.\n",codefile);
+    }
+    codeGen();
+    fclose(code);
+
+    if(! Error){
+      fprintf(listing,"\nCode Generation Finished...\n");
+      fprintf(listing, "\nSee %s for result codes.\n", codefile);
+    }
+    else{
+      fprintf(listing, "\nError occurred in Code generating!\n");
+      return 1;
+    }
+    
+
     return 0;
 }
 

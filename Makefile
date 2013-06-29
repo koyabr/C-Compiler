@@ -10,44 +10,52 @@ LFLAGS =
 YACC = bison
 YFLAGS = -d
 
-OBJS = main.o  parse.o symtab.o scan.o ast.o
+OBJS = main.o utils.o scan.o parse.o AST.o symtab.o codegen.o 
 
 
 all: main tm
 
 main: $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) -o main -g
+	$(CC) $(CFLAGS) $(OBJS) -o $@ -g
 tm: tm.c
-	$(CC) $(CFLAGS) tm.c -o tm
+	$(CC) $(CFLAGS) $< -o $@
 
 # For different objs
 
-main.o: test.c globals.h  parse.h symtab.h 
-	$(CC) $(CFLAGS) -c test.c -o main.o -g
+main.o: main.c globals.h utils.h parse.h symtab.h codegen.h
+	$(CC) $(CFLAGS) -c $< -o $@ -g
 
-scan.o: lex.yy.c
-	$(CC) $(CFLAGS) -c lex.yy.c -o scan.o -g
+utils.o: utils.c utils.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+scan.o: scan.c globals.h parse.h
+	$(CC) $(CFLAGS) -c $< -o $@ -g
 
 parse.o: parse.c parse.h
-	$(CC) $(CFLAGS) -c parse.c -g
+	$(CC) $(CFLAGS) -c $< -o $@ -g
 
-ast.o: AST.c AST.h
-	$(CC) $(CFLAGS) -c AST.c -g
+AST.o: AST.c AST.h
+	$(CC) $(CFLAGS) -c $< -o $@ -g
 
 ## For Lex and Yacc
-lex.yy.c: raw/scan.l globals.h parse.h
-	$(LEX) $(LFLAGS) raw/scan.l
+scan.c: raw/scan.l globals.h parse.h
+	$(LEX) $(LFLAGS) -o $@ $< 
 
 
-parse.c: raw/parse.y globals.h AST.h
-	$(YACC) $(YFLAGS) raw/parse.y -o parse.c -g
+parse.c parse.h: raw/parse.y globals.h AST.h
+	$(YACC) $(YFLAGS) $< -o $@
 
 ##
 
 
 symtab.o: symtab.c symtab.h
-	$(CC) $(CFLAGS) -c symtab.c -g
+	$(CC) $(CFLAGS) -c $< -o $@ -g
+
+codegen.o: codegen.c codegen.h
+	$(CC) $(CFLAGS) -c $< -o $@ -g
 
 
 clean:
-	del *.o 
+	rm -f *.o 
+	rm -f scan.c
+	rm -f parse.c

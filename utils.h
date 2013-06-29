@@ -6,7 +6,6 @@
 #include "globals.h"
 
 
-void ErrorMsg(TreeNode* t, char* message);
-
+void ErrorMsg(TreeNode* t, char* message, char* ID);
 
 #endif

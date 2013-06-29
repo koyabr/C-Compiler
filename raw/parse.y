@@ -63,6 +63,9 @@ type_specifier: INT				{$$ = newTypeSpe(TYPE_INTEGER, yylineno);}
 fun_declaration: type_specifier ID LBracket params RBracket compound_stmt {$$ = newFunDec($1, $2, $4, $6, yylineno);}
 ;
 
+compound_stmt: LBrace local_declarations statement_list RBrace	{$$ = newCompound($2, $3, yylineno);}
+;
+
 params: param_list				{$$ = newParams($1);}
 | VOID						{$$ = newParams(NULL);}
 ;
@@ -75,25 +78,24 @@ param: type_specifier ID			{$$ = newParam($1, $2, 0, yylineno);}
 | type_specifier ID LSB RSB			{$$ = newParam($1, $2, 1, yylineno);}
 ;
 
-compound_stmt: LBrace local_declarations statement_list RBrace	{$$ = newCompound($2, $3, yylineno);}
-;
+
 
 local_declarations: local_declarations var_declaration	{$$ = newLocalDecs($1, $2);}
-| 						{$$ = NULL}
-;
-
-statement_list: statement_list statement	{$$ = newStmtList($1, $2);}
 | 						{$$ = NULL;}
 ;
 
-statement: expression_stmt			{$$ = newStmt($1);}
-| compound_stmt					{$$ = newStmt($1);}
-| selection_stmt				{$$ = newStmt($1);}
-| iteration_stmt				{$$ = newStmt($1);}
-| return_stmt					{$$ = newStmt($1);}
+statement_list: statement_list statement	{$$ = newStmtList($1, $2, yylineno);}
+| 						{$$ = NULL;}
 ;
 
-expression_stmt: expression SEMI		{$$ = newExpStmt($1, yylineno);}
+statement: expression_stmt		{$$ = $1;}
+| compound_stmt					{$$ = $1;}
+| selection_stmt				{$$ = $1;}
+| iteration_stmt				{$$ = $1;}
+| return_stmt					{$$ = $1;}
+;
+
+expression_stmt: expression SEMI		{$$ = $1;}
 | SEMI						{$$ = NULL;}
 ;
 
@@ -109,7 +111,7 @@ return_stmt: RETURN SEMI			{$$ = newRetStmt(NULL, yylineno);}
 ;
 
 expression: var ASSIGN expression		{$$ = newAssignExp($1, $3, yylineno);}
-| simple_expression				{$$ = newExpression($1);}
+| simple_expression				{$$ = $1;}
 ;
 
 var: ID						{$$ = newVar($1, yylineno);}
@@ -117,7 +119,7 @@ var: ID						{$$ = newVar($1, yylineno);}
 ;
 
 simple_expression: additive_expression relop additive_expression	{$$ = newSimpExp($1, $2, $3, yylineno);}
-| additive_expression				{$$ = newSimpExp($1, -1, NULL, yylineno);}
+| additive_expression				{$$ = $1;}
 ;
 
 relop: GT					{$$ = GT;}
@@ -144,16 +146,16 @@ mulop: MULTI					{$$ = MULTI;}
 | DIV						{$$ = DIV;}
 ;
 
-factor: LBracket expression RBracket 		{$$ = newTermFactor($2);}
-| var						{$$ = newTermFactor($1);}
-| call						{$$ = newTermFactor($1);}
-| NUMBER					{$$ = newTermFactor(newNumNode($1, yylineno));}
+factor: LBracket expression RBracket 		{$$ = $2;}
+| var						{$$ = $1;}
+| call						{$$ = $1;}
+| NUMBER					{$$ = newNumNode($1, yylineno);}
 ;
 
 call: ID LBracket args RBracket			{$$ = newCall($1, $3, yylineno);}
 ;
 
-args: arg_list					{$$ = newArgs($1);}
+args: arg_list					{$$ = $1;}
 | 						{$$ = NULL;}
 ;
 
